@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg:      #080b10;
+  --panel:   #0e1219;
+  --card:    #131720;
+  --border:  #1e2535;
+  --border2: #2a3347;
+  --accent:  #3b82f6;
+  --accent2: #1d4ed8;
+  --ok:      #22c55e;
+  --warn:    #f59e0b;
+  --danger:  #ef4444;
+  --text:    #e2e8f0;
+  --muted:   #64748b;
+  --muted2:  #94a3b8;
+  --mono:    'Space Mono', monospace;
+  --sans:    'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+input, select, button { font-family: var(--sans); }
