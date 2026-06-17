@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "buildCommand": "",
+  "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/disparar",
+      "schedule": "* * * * *"
+    }
+  ],
+  "rewrites": [
+    { "source": "/api/disparar", "destination": "/api/disparar.js" }
+  ]
+}
