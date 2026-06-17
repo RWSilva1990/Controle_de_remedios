@@ -1,8 +1,0 @@
-{
-  "name": "rws-remedios",
-  "version": "2.0.0",
-  "description": "Controle de medicamentos pessoal RWS",
-  "dependencies": {
-    "firebase-admin": "^12.0.0"
-  }
-}
