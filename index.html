@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Controle de Medicamentos</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💊</text></svg>">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f1117">
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+
+    <script>
+        // Inicialização do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyAq_YVjcbzdThDjXKPnRwKCQMSyljLpmL4",
+            authDomain: "controle-de-medicamentos-rws.firebaseapp.com",
+            projectId: "controle-de-medicamentos-rws",
+            storageBucket: "controle-de-medicamentos-rws.firebasestorage.app",
+            messagingSenderId: "291620521736",
+            appId: "1:291620521736:web:e96a20cba5244808ea4ebd"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const messaging = firebase.messaging();
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* CSS BASE DO PROJETO */
+        :root {
+            --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+            --border: #2e3350; --accent: #4f7dff; --danger: #ef4444;
+            --warn: #f59e0b; --ok: #10b981; --text: #e8eaf6; --muted: #6b7280;
+            --mono: 'DM Mono', monospace; --sans: 'Sora', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+        
+        /* LOGIN */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1.5rem; }
+        .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 24px; padding: 2.5rem 2rem; width: 100%; max-width: 360px; text-align: center; }
+        .login-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .login-box h2 { font-size: 1.4rem; font-weight: 800; }
+        .login-box p { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+        
+        /* FORMS & BUTTONS */
+        input { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); padding: 0.75rem 1rem; width: 100%; outline: none; }
+        input:focus { border-color: var(--accent); }
+        .btn-primary { background: var(--accent); color: white; border: none; border-radius: 14px; padding: 0.9rem 1.5rem; font-weight: 700; cursor: pointer; width: 100%; margin-top: 1rem; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* LAYOUT PRINCIPAL */
+        #main-content { max-width: 680px; margin: 0 auto; padding: 1.5rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header-title { font-size: 1.5rem; font-weight: 800; }
+        .header-title span { color: var(--accent); }
+        
+        /* CARDS */
+        .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1rem; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .dose-row { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .btn-add-dose { background: none; border: 1px dashed var(--border); color: var(--accent); border-radius: 10px; padding: 0.5rem; width: 100%; margin-top: 0.5rem; cursor: pointer; }
+        
+        /* LISTA DE MEDS */
+        .med-card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; }
+        .med-avatar { width: 50px; height: 50px; border-radius: 14px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.4rem; }
+        .med-info { flex: 1; }
+        .med-nome { font-weight: 800; font-size: 1rem; text-transform: uppercase; }
+        .dose-badge { background: var(--surface2); border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.7rem; font-family: var(--mono); color: var(--muted); margin-right: 0.5rem; }
+        .med-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1rem; }
+        .estoque-valor { font-size: 2rem; font-weight: 800; font-family: var(--mono); line-height: 1; }
+        .btn-remove-med { background: none; border: none; color: var(--danger); cursor: pointer; font-size: 1.2rem; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <div class="login-icon">💊</div>
+            <h2>Controle RWS</h2>
+            <p>Digite sua senha para continuar</p>
+            <input type="password" id="app-pass" placeholder="••••••" onkeydown="if(event.key==='Enter') checkPass()">
+            <button class="btn-primary" onclick="checkPass()">Entrar</button>
+        </div>
+    </div>
+
+    <div id="main-content" class="hidden">
+        <header>
+            <div class="header-title">💊 Controle <span>RWS</span></div>
+            <button style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;" onclick="carregarDados()">🔄</button>
+        </header>
+
+        <div class="form-card">
+            <form id="med-form">
+                <div class="form-group">
+                    <label>Nome do Medicamento</label>
+                    <input type="text" id="nome" required placeholder="Ex: LAMITOR">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Total na Caixa</label>
+                        <input type="number" id="total" required placeholder="60">
+                    </div>
+                    <div class="form-group">
+                        <label>Aviso de Estoque</label>
+                        <input type="number" id="alerta" required placeholder="10">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Data da Recarga</label>
+                    <input type="datetime-local" id="dataCompra" required>
+                </div>
+                <div class="form-group">
+                    <label>Doses Diárias</label>
+                    <div id="horarios-container"></div>
+                    <button type="button" class="btn-add-dose" onclick="adicionarLinhaDose()">+ Adicionar horário</button>
+                </div>
+                <button type="submit" class="btn-primary" id="btn-salvar">Salvar no Firebase</button>
+            </form>
+        </div>
+
+        <div id="lista-meds"></div>
+    </div>
+
+    <script>
+        const SENHA_DEFINIDA = "Jessy@0407";
+        let medicamentos = [];
+
+        // 1. SISTEMA DE LOGIN E PUSH NOTIFICATIONS (FCM)
+        async function checkPass() {
+            if (document.getElementById('app-pass').value === SENHA_DEFINIDA) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                await carregarDados();
+                pedirPermissaoPush(); // Chama o Push do Firebase ao logar
+            } else {
+                alert("Senha incorreta");
+            }
+        }
+
+        function pedirPermissaoPush() {
+            Notification.requestPermission().then((permission) => {
+                if (permission === 'granted') {
+                    // ATENÇÃO: Adicione a sua chave VAPID gerada no console do Firebase abaixo:
+                    messaging.getToken({ vapidKey: 'SUA_CHAVE_VAPID_AQUI_GERADA_NO_CONSOLE_DO_FIREBASE' })
+                        .then((token) => {
+                            if (token) {
+                                console.log("Token FCM salvo com sucesso:", token);
+                                // Salva o token no banco de dados
+                                db.collection("tokens").doc("usuario_principal").set({ token: token });
+                            }
+                        });
+                }
+            });
+        }
+
+        // 2. FUNÇÕES DO FIRESTORE (BANCO DE DADOS)
+        async function carregarDados() {
+            try {
+                const snapshot = await db.collection("medicamentos").get();
+                medicamentos = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    medicamentos.push({ id: doc.id, ...data });
+                });
+                renderizar();
+            } catch (e) { console.error(e); }
+        }
+
+        async function sincronizarComNuvem() {
+            const btn = document.getElementById('btn-salvar');
+            btn.disabled = true;
+            btn.innerText = "Salvando...";
+
+            try {
+                const batch = db.batch();
+                for (const m of medicamentos) {
+                    const docRef = m.id ? db.collection("medicamentos").doc(m.id) : db.collection("medicamentos").doc();
+                    batch.set(docRef, {
+                        nome: m.nome, total: m.total, dataCompra: m.dataCompra, alerta: m.alerta, configDoses: m.configDoses
+                    });
+                }
+                await batch.commit();
+                await carregarDados(); // Recarrega os IDs oficiais
+                document.getElementById('med-form').reset();
+                document.getElementById('horarios-container').innerHTML = '';
+                adicionarLinhaDose();
+            } catch (e) {
+                alert("Erro ao salvar!");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Salvar no Firebase";
+            }
+        }
+
+        async function remover(index) {
+            const med = medicamentos[index];
+            if (confirm(`Remover ${med.nome}?`)) {
+                if (med.id) await db.collection("medicamentos").doc(med.id).delete();
+                medicamentos.splice(index, 1);
+                renderizar();
+            }
+        }
+
+        // 3. LÓGICA DE ESTOQUE E UI
+        function calcularEstoque(med) {
+            const agora = new Date();
+            const dataInicio = new Date(med.dataCompra);
+            if (dataInicio >= agora) return med.total;
+
+            let totalConsumido = 0;
+            let diaAtual = new Date(dataInicio);
+            diaAtual.setHours(0, 0, 0, 0);
+            
+            const hoje = new Date();
+            hoje.setHours(23, 59, 59, 999);
+
+            while (diaAtual <= hoje) {
+                med.configDoses.forEach(dose => {
+                    const [h, m] = dose.hora.split(':').map(Number);
+                    const momentoDose = new Date(diaAtual);
+                    momentoDose.setHours(h, m, 0, 0);
+                    if (momentoDose >= dataInicio && momentoDose <= agora) {
+                        totalConsumido += Number(dose.qtd);
+                    }
+                });
+                diaAtual.setDate(diaAtual.getDate() + 1);
+            }
+            return Math.max(0, med.total - totalConsumido);
+        }
+
+        function renderizar() {
+            const lista = document.getElementById('lista-meds');
+            lista.innerHTML = '';
+            medicamentos.forEach((med, i) => {
+                const atual = calcularEstoque(med);
+                const isAlerta = atual <= med.alerta;
+                lista.innerHTML += `
+                <div class="med-card" style="${isAlerta ? 'border-color: var(--danger)' : ''}">
+                    <div class="med-avatar">${med.nome.charAt(0)}</div>
+                    <div class="med-info">
+                        <div class="med-nome">${med.nome}</div>
+                        <div>${med.configDoses.map(d => `<span class="dose-badge">${d.hora} - ${d.qtd}cp</span>`).join('')}</div>
+                        <div class="med-footer">
+                            <div class="estoque-valor" style="color: ${isAlerta ? 'var(--danger)' : 'var(--ok)'}">${atual}</div>
+                            <button class="btn-remove-med" onclick="remover(${i})">🗑️</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function adicionarLinhaDose() {
+            const div = document.createElement('div');
+            div.className = 'dose-row';
+            div.innerHTML = `
+                <input type="time" class="med-hora" required>
+                <input type="number" step="0.5" class="med-qtd" placeholder="Qtd" required>
+                <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:red;font-size:1.5rem;">✕</button>`;
+            document.getElementById('horarios-container').appendChild(div);
+        }
+
+        document.getElementById('med-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const doses = Array.from(document.querySelectorAll('.dose-row')).map(row => ({
+                hora: row.querySelector('.med-hora').value,
+                qtd: row.querySelector('.med-qtd').value
+            }));
+
+            const nome = document.getElementById('nome').value.trim().toUpperCase();
+            const total = Number(document.getElementById('total').value);
+            const dataCompra = document.getElementById('dataCompra').value;
+            const alerta = Number(document.getElementById('alerta').value);
+
+            // Verifica se o medicamento já existe pelo nome para atualizar ou adicionar novo
+            const indexExistente = medicamentos.findIndex(m => m.nome === nome);
+            if(indexExistente !== -1) {
+                // Atualiza o estoque existente
+                const estoqueReal = calcularEstoque(medicamentos[indexExistente]);
+                medicamentos[indexExistente].total = estoqueReal + total;
+                const recarga = new Date();
+                recarga.setMinutes(recarga.getMinutes() + 1);
+                medicamentos[indexExistente].dataCompra = recarga.toISOString();
+                medicamentos[indexExistente].configDoses = doses;
+                medicamentos[indexExistente].alerta = alerta;
+            } else {
+                medicamentos.push({ nome, total, dataCompra, alerta, configDoses: doses });
+            }
+            await sincronizarComNuvem();
+        });
+
+        adicionarLinhaDose();
+
+        // 4. REGISTRO DO SERVICE WORKER NO NAVEGADOR
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('firebase-messaging-sw.js')
+                    .then(reg => console.log('SW Registrado no Escopo:', reg.scope))
+                    .catch(err => console.error('Erro no SW:', err));
+            });
+        }
+    </script>
+</body>
+</html>
