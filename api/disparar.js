@@ -1,64 +1,114 @@
 const admin = require('firebase-admin');
 
-// 1. Inicia o Firebase usando a Chave que guardamos no Vercel
 if (!admin.apps.length) {
     const credenciais = JSON.parse(process.env.FIREBASE_CREDENTIALS);
-    admin.initializeApp({
-        credential: admin.credential.cert(credenciais)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(credenciais) });
 }
 
 const db = admin.firestore();
 const messaging = admin.messaging();
 
 module.exports = async function handler(req, res) {
+    // Permite chamada manual pelo app (CORS)
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') return res.status(200).end();
+
     try {
-        // 2. Pega a hora exata no Brasil (Formato: "HH:MM")
+        const agora = new Date();
         const horaAtual = new Intl.DateTimeFormat('pt-BR', {
             timeZone: 'America/Sao_Paulo',
             hour: '2-digit',
             minute: '2-digit'
-        }).format(new Date());
+        }).format(agora);
 
-        console.log(`Rodando verificação para: ${horaAtual}`);
+        console.log(`[disparar] Verificando: ${horaAtual}`);
 
-        // 3. Pega o Token do seu celular cadastrado no banco
+        // Busca token do dispositivo
         const tokenSnap = await db.collection('tokens').doc('usuario_principal').get();
-        if (!tokenSnap.exists) return res.status(200).json({ status: "Sem tokens cadastrados." });
+        if (!tokenSnap.exists) {
+            return res.status(200).json({ status: 'Sem token cadastrado.' });
+        }
         const tokenCelular = tokenSnap.data().token;
 
-        // 4. Busca todos os medicamentos
+        // Busca todos os medicamentos
         const medSnap = await db.collection('medicamentos').get();
-        let avisosEnviados = 0;
+        let enviadas = 0;
+        const erros = [];
 
-        // 5. Verifica se algum deles tem dose exatamente nesta hora/minuto
         for (const doc of medSnap.docs) {
             const med = doc.data();
             const doses = med.configDoses || [];
 
+            // ── Verifica dose da hora atual ──
             for (const dose of doses) {
                 if (dose.hora === horaAtual) {
-                    // Prepara a Notificação Push
-                    const mensagem = {
-                        notification: {
-                            title: `💊 Hora do Remédio: ${med.nome}`,
-                            body: `Tome agora ${dose.qtd} comprimido(s).`
-                        },
-                        token: tokenCelular
-                    };
+                    // Calcula estoque atual
+                    const estoque = calcularEstoque(med, agora);
 
-                    // Envia pro celular
-                    await messaging.send(mensagem);
-                    avisosEnviados++;
+                    try {
+                        await messaging.send({
+                            notification: {
+                                title: `💊 ${med.nome}`,
+                                body: `Tome agora ${dose.qtd} comprimido(s). Restam ${estoque}.`
+                            },
+                            data: { tag: `dose-${doc.id}`, url: '/' },
+                            token: tokenCelular
+                        });
+                        enviadas++;
+
+                        // ── Verifica estoque mínimo após esta dose ──
+                        const estoqueAposDose = Math.max(0, estoque - Number(dose.qtd));
+                        if (estoqueAposDose <= med.alerta) {
+                            await messaging.send({
+                                notification: {
+                                    title: `⚠️ Estoque baixo: ${med.nome}`,
+                                    body: `Restam apenas ${estoqueAposDose} comprimido(s). Hora de comprar mais!`
+                                },
+                                data: { tag: `alerta-${doc.id}`, url: '/' },
+                                token: tokenCelular
+                            });
+                            enviadas++;
+                        }
+                    } catch(e) {
+                        erros.push(`${med.nome}: ${e.message}`);
+                    }
                 }
             }
         }
 
-        // Responde que deu tudo certo
-        res.status(200).json({ sucesso: true, horaAvaliada: horaAtual, enviadas: avisosEnviados });
+        return res.status(200).json({
+            sucesso: true,
+            horaAvaliada: horaAtual,
+            enviadas,
+            erros: erros.length ? erros : undefined
+        });
 
     } catch (erro) {
-        console.error(erro);
-        res.status(500).json({ erro: erro.message });
+        console.error('[disparar] Erro:', erro);
+        return res.status(500).json({ erro: erro.message });
     }
+};
+
+// Replica a lógica de cálculo de estoque (igual ao frontend)
+function calcularEstoque(med, agora) {
+    const dataInicio = new Date(med.dataCompra);
+    if (dataInicio >= agora) return med.total;
+
+    let consumido = 0;
+    let dia = new Date(dataInicio);
+    dia.setHours(0, 0, 0, 0);
+    const hojeMax = new Date(agora);
+
+    while (dia <= hojeMax) {
+        (med.configDoses || []).forEach(dose => {
+            const [h, m] = dose.hora.split(':').map(Number);
+            const momento = new Date(dia);
+            momento.setHours(h, m, 0, 0);
+            if (momento >= dataInicio && momento <= agora) {
+                consumido += Number(dose.qtd);
+            }
+        });
+        dia.setDate(dia.getDate() + 1);
+    }
+    return Math.max(0, med.total - consumido);
 }
