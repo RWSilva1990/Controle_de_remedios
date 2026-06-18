@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 if (!admin.apps.length) {
   const credenciais = JSON.parse(process.env.FIREBASE_CREDENTIALS);
@@ -8,7 +8,25 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-module.exports = async function handler(req, res) {
+function calcularEstoque(med, agora) {
+  const dataInicio = new Date(med.dataCompra);
+  if (dataInicio >= agora) return med.total;
+  let consumido = 0;
+  let dia = new Date(dataInicio);
+  dia.setHours(0, 0, 0, 0);
+  while (dia <= agora) {
+    (med.configDoses || []).forEach(dose => {
+      const [h, m] = dose.hora.split(':').map(Number);
+      const momento = new Date(dia);
+      momento.setHours(h, m, 0, 0);
+      if (momento >= dataInicio && momento <= agora) consumido += Number(dose.qtd);
+    });
+    dia.setDate(dia.getDate() + 1);
+  }
+  return Math.max(0, med.total - consumido);
+}
+
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -63,22 +81,4 @@ module.exports = async function handler(req, res) {
   } catch (erro) {
     return res.status(500).json({ erro: erro.message });
   }
-};
-
-function calcularEstoque(med, agora) {
-  const dataInicio = new Date(med.dataCompra);
-  if (dataInicio >= agora) return med.total;
-  let consumido = 0;
-  let dia = new Date(dataInicio);
-  dia.setHours(0, 0, 0, 0);
-  while (dia <= agora) {
-    (med.configDoses || []).forEach(dose => {
-      const [h, m] = dose.hora.split(':').map(Number);
-      const momento = new Date(dia);
-      momento.setHours(h, m, 0, 0);
-      if (momento >= dataInicio && momento <= agora) consumido += Number(dose.qtd);
-    });
-    dia.setDate(dia.getDate() + 1);
-  }
-  return Math.max(0, med.total - consumido);
 }
