@@ -25,10 +25,12 @@ module.exports = async function handler(req, res) {
 
     const medSnap = await db.collection('medicamentos').get();
     let enviadas = 0;
+    const debugDoses = [];
 
     for (const docSnap of medSnap.docs) {
       const med = docSnap.data();
       for (const dose of (med.configDoses || [])) {
+        debugDoses.push({ medicamento: med.nome, horaCadastrada: dose.hora, bateu: dose.hora === horaAtual });
         if (dose.hora === horaAtual) {
           const estoque = calcularEstoque(med, agora);
           await messaging.send({
@@ -57,7 +59,7 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ sucesso: true, horaAvaliada: horaAtual, enviadas });
+    return res.status(200).json({ sucesso: true, horaAvaliada: horaAtual, enviadas, debugDoses });
   } catch (erro) {
     return res.status(500).json({ erro: erro.message });
   }
