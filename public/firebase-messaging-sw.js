@@ -2,7 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "AIzaSyAq_YVjcbzdThDjXKPnRwKCQMSyljLpmL4",
+  apiKey: "AIzaSyDCJEYgFMWnEOTav_Hzku28PK88Mi_jQgw",
   authDomain: "controle-de-medicamentos-rws.firebaseapp.com",
   projectId: "controle-de-medicamentos-rws",
   storageBucket: "controle-de-medicamentos-rws.firebasestorage.app",
