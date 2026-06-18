@@ -1,5 +1,13 @@
 {
   "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/disparar.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    { "src": "/api/disparar", "dest": "/api/disparar.js" }
+  ]
 }
