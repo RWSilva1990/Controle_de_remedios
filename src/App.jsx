@@ -139,7 +139,8 @@ export default function App() {
         return true
       }
     } catch(e) {
-      showToast('Erro ao ativar notificações')
+      console.error('Erro detalhado ao ativar notificações:', e)
+      showToast(`Erro: ${e.message || e.code || 'desconhecido'}`)
       return false
     }
   }
