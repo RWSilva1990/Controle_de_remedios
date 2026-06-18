@@ -1,18 +1,50 @@
 import { useState, useEffect } from 'react'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase'
 import s from './TabConfig.module.css'
 
 export default function TabConfig({ onAtivarNotif, showToast }) {
-  const [notifStatus, setNotifStatus] = useState('desconhecido')
+  const [status, setStatus] = useState('verificando') // verificando | ativo | inativo | bloqueado
 
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotifStatus(Notification.permission)
-    }
+    verificarStatus()
   }, [])
 
+  const verificarStatus = async () => {
+    if (!('Notification' in window)) {
+      setStatus('inativo')
+      return
+    }
+    const perm = Notification.permission
+    if (perm === 'denied') {
+      setStatus('bloqueado')
+      return
+    }
+    if (perm === 'granted') {
+      // Verifica se o token está salvo no Firestore
+      try {
+        const snap = await getDoc(doc(db, 'tokens', 'usuario_principal'))
+        if (snap.exists() && snap.data().token) {
+          setStatus('ativo')
+        } else {
+          setStatus('inativo')
+        }
+      } catch {
+        setStatus('inativo')
+      }
+    } else {
+      setStatus('inativo')
+    }
+  }
+
   const ativar = async () => {
+    setStatus('verificando')
     const ok = await onAtivarNotif()
-    if (ok) setNotifStatus('granted')
+    if (ok) {
+      setStatus('ativo')
+    } else {
+      setStatus('inativo')
+    }
   }
 
   const testar = async () => {
@@ -25,12 +57,12 @@ export default function TabConfig({ onAtivarNotif, showToast }) {
     }
   }
 
-  const statusLabel = {
-    granted: '✅ Ativadas',
-    denied:  '🚫 Bloqueadas pelo sistema',
-    default: '⏳ Aguardando permissão',
-    desconhecido: '—'
-  }[notifStatus] || '—'
+  const statusInfo = {
+    verificando: { label: '⏳ Verificando...', btn: '...', disabled: true },
+    ativo:       { label: '✅ Ativadas e funcionando', btn: 'Ativado ✅', disabled: true },
+    inativo:     { label: '⚪ Não ativadas', btn: 'Ativar', disabled: false },
+    bloqueado:   { label: '🚫 Bloqueadas — libere nas configurações do Chrome', btn: 'Bloqueado', disabled: true },
+  }[status]
 
   return (
     <div className={s.wrap}>
@@ -40,18 +72,18 @@ export default function TabConfig({ onAtivarNotif, showToast }) {
           <div className={s.desc}>Alertas de dose e estoque mínimo</div>
         </div>
         <button
-          className={`${s.btn} ${notifStatus === 'granted' ? s.btnActive : ''}`}
+          className={`${s.btn} ${status === 'ativo' ? s.btnActive : ''}`}
           onClick={ativar}
-          disabled={notifStatus === 'denied'}
+          disabled={statusInfo.disabled}
         >
-          {notifStatus === 'granted' ? 'Ativado ✅' : 'Ativar'}
+          {statusInfo.btn}
         </button>
       </div>
 
       <div className={s.row}>
         <div>
           <div className={s.label}>Status das notificações</div>
-          <div className={s.desc}>{statusLabel}</div>
+          <div className={s.desc}>{statusInfo.label}</div>
         </div>
       </div>
 
@@ -70,10 +102,7 @@ export default function TabConfig({ onAtivarNotif, showToast }) {
         </div>
       </div>
 
-      <button
-        className={s.btnLogout}
-        onClick={() => window.location.reload()}
-      >
+      <button className={s.btnLogout} onClick={() => window.location.reload()}>
         Sair
       </button>
     </div>
