@@ -12,7 +12,7 @@ import ModalRecarga from './components/ModalRecarga'
 import styles from './App.module.css'
 
 const SENHA = 'Jessy@0407'
-const VAPID = 'BGJfHoUZytY1ViwsDZGlZ8K2wcRMO8HB0mBI8lv94mqCqmK3BEDuJasMy_vpFAZHCaRoU_O5yCVZ7OORmVvOV8s'
+const VAPID = 'BHZwg_O0PvDIVMOpFRjlRSAOrnh3xTRYRiTpWhiUclvZl_h_PbKbGhAcl8-vLzJ3oWAPExJvsmb_-Qdux_S4pCk'
 
 export function calcularEstoque(med, agora = new Date()) {
   const dataInicio = new Date(med.dataCompra)
