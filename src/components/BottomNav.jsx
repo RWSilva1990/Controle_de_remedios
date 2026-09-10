@@ -4,6 +4,7 @@ const TABS = [
   { id: 'home', icon: '⌂', label: 'Início' },
   { id: 'meds', icon: '✚', label: 'Medicamentos' },
   { id: 'history', icon: '◷', label: 'Histórico' },
+  { id: 'profile', icon: '◉', label: 'Perfil' },
   { id: 'config', icon: '⚙', label: 'Ajustes' },
 ]
 
