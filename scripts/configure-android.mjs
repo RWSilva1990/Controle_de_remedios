@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 
 const manifestPath = 'android/app/src/main/AndroidManifest.xml'
 const javaDir = 'android/app/src/main/java/br/com/rwsilva/remedios'
+const drawableDir = 'android/app/src/main/res/drawable'
 const templatesDir = 'android-templates'
 
 const permissions = [
@@ -54,6 +55,9 @@ if (!manifest.includes('.RwsAlarmActivity')) {
   manifest = `${manifest.slice(0, applicationEnd)}${nativeComponents}\n    ${manifest.slice(applicationEnd)}`
 }
 
+manifest = manifest.replace(/android:icon="[^"]+"/, 'android:icon="@drawable/rws_app_icon"')
+manifest = manifest.replace(/android:roundIcon="[^"]+"/, 'android:roundIcon="@drawable/rws_app_icon"')
+
 await writeFile(manifestPath, manifest, 'utf8')
 
 await mkdir(javaDir, { recursive: true })
@@ -70,6 +74,9 @@ for (const file of javaFiles) {
   await copyFile(`${templatesDir}/${file}`, `${javaDir}/${file}`)
 }
 
+await mkdir(drawableDir, { recursive: true })
+await copyFile('public/icon-512.png', `${drawableDir}/rws_app_icon.png`)
+
 const mainActivity = `package br.com.rwsilva.remedios;
 
 import android.os.Bundle;
@@ -85,4 +92,4 @@ public class MainActivity extends BridgeActivity {
 `
 
 await writeFile(`${javaDir}/MainActivity.java`, mainActivity, 'utf8')
-console.log('Android configurado com alarmes nativos em tela cheia.')
+console.log('Android configurado com alarmes nativos e ícone RWS Remédios.')
