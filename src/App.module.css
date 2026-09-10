@@ -4,23 +4,21 @@
   min-height: 100dvh;
   max-width: 680px;
   margin: 0 auto;
-  background: var(--bg);
+  background: var(--app-gradient);
 }
 
 .homeShell {
-  background:
-    radial-gradient(circle at 78% 6%, rgba(177, 237, 204, 0.38), transparent 28%),
-    linear-gradient(180deg, #effcf5 0%, #f4faf8 34%, #f6f8fb 72%, #f6f8fb 100%);
+  background: var(--app-gradient);
 }
 
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(245, 248, 251, 0.94);
+  background: rgba(239, 247, 255, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(222, 231, 240, 0.9);
+  border-bottom: 1px solid rgba(211, 226, 242, 0.92);
   padding: calc(0.8rem + env(safe-area-inset-top)) 1.15rem 0.8rem;
   display: flex;
   align-items: center;
@@ -52,7 +50,7 @@
   width: 34px;
   height: 34px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--muted2);
   border-radius: 12px;
   cursor: pointer;
@@ -67,6 +65,7 @@
   flex: 1;
   padding: 1rem 1.1rem calc(6.8rem + env(safe-area-inset-bottom));
   overflow-y: auto;
+  background: transparent;
 }
 
 .homeContent {
