@@ -1,76 +1,85 @@
-import { useState, useEffect } from 'react'
 import s from './TabConfig.module.css'
 
-export default function TabConfig({ notifAtiva, onAtivarNotif, showToast }) {
-  const [perm, setPerm] = useState(Notification.permission)
+export default function TabConfig({
+  notifAtiva,
+  exactAlarmStatus,
+  nativeNotifications,
+  onAtivarNotif,
+  onConfigurarAlarmes,
+  onTestarNotif,
+}) {
+  const exactGranted = exactAlarmStatus === 'granted' || exactAlarmStatus === 'not-applicable'
 
-  useEffect(() => {
-    setPerm(Notification.permission)
-  }, [notifAtiva])
+  const notificationStatus = notifAtiva
+    ? 'Ativadas e funcionando'
+    : 'Ainda não ativadas'
 
-  const ativar = async () => {
-    const ok = await onAtivarNotif()
-    if (ok) setPerm('granted')
-  }
-
-  const testar = () => {
-    if (perm !== 'granted') { showToast('Ative as notificações primeiro'); return }
-    new Notification('💊 Teste RWS Remédios', {
-      body: 'As notificações estão funcionando!',
-      icon: '/icon-192.png'
-    })
-    showToast('✅ Notificação de teste enviada!')
-  }
-
-  const statusLabel = {
-    granted: '✅ Ativadas e funcionando',
-    denied:  '🚫 Bloqueadas — libere nas configurações do Chrome',
-    default: '⚪ Não ativadas ainda',
-  }[perm] || '⚪ Não ativadas ainda'
+  const exactStatus = exactGranted
+    ? 'Horários precisos habilitados'
+    : 'O Android precisa de uma autorização adicional para horários precisos'
 
   return (
     <div className={s.wrap}>
-      <div className={s.row}>
-        <div>
-          <div className={s.label}>Notificações</div>
-          <div className={s.desc}>Alarmes de dose e alerta de estoque</div>
+      <section className={s.intro}>
+        <span className={s.eyebrow}>Ajustes</span>
+        <h1>Lembretes e preferências</h1>
+        <p>Configure o Android para que os avisos de dose sejam entregues com a maior precisão possível.</p>
+      </section>
+
+      <div className={s.card}>
+        <div className={s.row}>
+          <div>
+            <div className={s.label}>Lembretes de dose</div>
+            <div className={s.desc}>{notificationStatus}</div>
+          </div>
+          <button
+            className={`${s.btn} ${notifAtiva ? s.btnActive : ''}`}
+            onClick={onAtivarNotif}
+            disabled={notifAtiva}
+          >
+            {notifAtiva ? 'Ativados' : 'Ativar'}
+          </button>
         </div>
-        <button
-          className={`${s.btn} ${perm === 'granted' ? s.btnActive : ''}`}
-          onClick={ativar}
-          disabled={perm === 'granted' || perm === 'denied'}
-        >
-          {perm === 'granted' ? 'Ativado ✅' : perm === 'denied' ? 'Bloqueado' : 'Ativar'}
-        </button>
+
+        {nativeNotifications && (
+          <div className={s.row}>
+            <div>
+              <div className={s.label}>Precisão dos alarmes</div>
+              <div className={s.desc}>{exactStatus}</div>
+            </div>
+            {!exactGranted && (
+              <button className={s.btn} onClick={onConfigurarAlarmes}>
+                Configurar
+              </button>
+            )}
+            {exactGranted && <span className={s.statusOk}>Ativo</span>}
+          </div>
+        )}
+
+        <div className={s.row}>
+          <div>
+            <div className={s.label}>Testar notificação</div>
+            <div className={s.desc}>Envie um aviso agora para confirmar que o aparelho está recebendo corretamente.</div>
+          </div>
+          <button className={s.btn} onClick={onTestarNotif}>Testar</button>
+        </div>
       </div>
 
-      <div className={s.row}>
-        <div>
-          <div className={s.label}>Status</div>
-          <div className={s.desc}>{statusLabel}</div>
-        </div>
-      </div>
-
-      <div className={s.row}>
-        <div>
-          <div className={s.label}>Testar notificação</div>
-          <div className={s.desc}>Dispara uma notificação agora para verificar</div>
-        </div>
-        <button className={s.btn} onClick={testar}>Testar</button>
-      </div>
-
-      <div className={s.row}>
+      <div className={s.infoCard}>
+        <div className={s.infoMark}>i</div>
         <div>
           <div className={s.label}>Como funciona</div>
-          <div className={s.desc}>O app verifica as doses a cada minuto enquanto estiver aberto no celular. Mantenha o app aberto em segundo plano para receber os alarmes.</div>
+          <div className={s.desc}>
+            {nativeNotifications
+              ? 'No APK, os horários ficam agendados diretamente no Android e não dependem de manter o RWS Remédios aberto.'
+              : 'Na versão web/PWA, os lembretes dependem mais do navegador. Para maior confiabilidade, utilize o APK Android.'}
+          </div>
         </div>
       </div>
 
-      <div className={s.row}>
-        <div>
-          <div className={s.label}>Versão</div>
-          <div className={s.desc}>RWS Remédios v2.0 — PWA React</div>
-        </div>
+      <div className={s.metaRow}>
+        <span>RWS Remédios</span>
+        <span>{nativeNotifications ? 'Android' : 'PWA'} · versão de teste</span>
       </div>
 
       <button className={s.btnLogout} onClick={() => window.location.reload()}>
