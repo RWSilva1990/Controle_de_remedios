@@ -1,41 +1,53 @@
 .nav {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 680px);
   z-index: 50;
-  background: rgba(14, 18, 25, 0.96);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--border);
-  display: flex;
-  padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom));
-  max-width: 680px;
-  margin: 0 auto;
-}
-
-/* Fix: nav needs to span full width on mobile */
-@media (max-width: 680px) {
-  .nav { max-width: 100%; }
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0.45rem 0 calc(0.45rem + env(safe-area-inset-bottom));
 }
 
 .btn {
-  flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 0.45rem 0.2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
-  color: var(--muted);
-  font-size: 0.65rem;
+  gap: 0.22rem;
+  color: #8a98a9;
+  font-size: 0.62rem;
   font-weight: 600;
-  font-family: var(--sans);
-  transition: color 0.15s;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
-.btn:active { transform: scale(0.93); }
-.btn.active { color: var(--accent); }
 
-.icon { font-size: 1.3rem; }
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn.active {
+  color: var(--accent);
+}
+
+.icon {
+  width: 28px;
+  height: 24px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.active .icon {
+  background: #edf6ff;
+}
