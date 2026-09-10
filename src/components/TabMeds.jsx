@@ -22,7 +22,7 @@ function diasRestantes(med) {
   return Math.floor(calcularEstoque(med) / consumoDia)
 }
 
-export default function TabMeds({ medicamentos, loading, onRecarga, onRemover, onAdd }) {
+export default function TabMeds({ medicamentos, loading, onRecarga, onRemover, onEditar, onAdd }) {
   if (loading) return <div className={s.empty}>Carregando medicamentos...</div>
 
   const critico = medicamentos.filter(m => calcularEstoque(m) <= Number(m.alerta || 0)).length
@@ -99,6 +99,7 @@ export default function TabMeds({ medicamentos, loading, onRecarga, onRemover, o
 
                 <div className={s.actions}>
                   <button className={s.buyButton} onClick={() => onRecarga(med.id)}>Registrar compra</button>
+                  <button className={s.editButton} onClick={() => onEditar(med.id)}>Editar</button>
                   <button className={s.removeButton} onClick={() => onRemover(med.id, med.nome)}>Remover</button>
                 </div>
               </article>
