@@ -197,23 +197,30 @@
 
 .actions {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.5rem;
   margin-top: 0.9rem;
+  flex-wrap: wrap;
 }
 
 .actions button {
   border-radius: 13px;
-  padding: 0.65rem 0.85rem;
-  font-size: 0.75rem;
+  padding: 0.65rem 0.78rem;
+  font-size: 0.72rem;
   font-weight: 650;
   cursor: pointer;
 }
 
 .buyButton {
-  flex: 1;
+  flex: 1 1 145px;
   border: 0;
   background: #edf6ff;
   color: var(--accent);
+}
+
+.editButton {
+  border: 1px solid #dce7f2;
+  background: #fff;
+  color: #3f5873;
 }
 
 .removeButton {
