@@ -83,11 +83,11 @@ const appIconVector = `<?xml version="1.0" encoding="utf-8"?>
     android:viewportHeight="512">
     <path
         android:fillColor="#168DDE"
-        android:pathData="M0,0h512v512h-512z" />
+        android:pathData="M72,8 H440 Q504,8 504,72 V440 Q504,504 440,504 H72 Q8,504 8,440 V72 Q8,8 72,8 Z" />
     <path
         android:fillColor="#33C9D0"
         android:fillAlpha="0.55"
-        android:pathData="M0,0h300v512h-300z" />
+        android:pathData="M72,8 H284 V504 H72 Q8,504 8,440 V72 Q8,8 72,8 Z" />
     <group
         android:pivotX="190"
         android:pivotY="250"
@@ -138,4 +138,4 @@ public class MainActivity extends BridgeActivity {
 `
 
 await writeFile(`${javaDir}/MainActivity.java`, mainActivity, 'utf8')
-console.log('Android configurado com alarmes nativos e novo ícone cápsula + relógio.')
+console.log('Android configurado com alarmes nativos e ícone cápsula + relógio arredondado.')
