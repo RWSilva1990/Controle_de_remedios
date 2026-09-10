@@ -13,6 +13,9 @@ import android.os.Build;
 
 import androidx.core.app.NotificationCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 public class RwsAlarmReceiver extends BroadcastReceiver {
     public static final String CHANNEL_ID = "rws-dose-alarm";
     public static final String ACTION_TAKEN = "br.com.rwsilva.remedios.TAKEN";
@@ -24,8 +27,8 @@ public class RwsAlarmReceiver extends BroadcastReceiver {
         ensureChannel(context);
 
         int alarmId = intent.getIntExtra("alarmId", 0);
-        String medicationName = intent.getStringExtra("medicationName");
-        int quantity = intent.getIntExtra("quantity", 1);
+        JSONArray items = getItems(intent);
+        int count = items.length();
 
         Intent fullScreen = copyAlarmIntent(new Intent(context, RwsAlarmActivity.class), intent);
         fullScreen.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -54,10 +57,15 @@ public class RwsAlarmReceiver extends BroadcastReceiver {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        String title = count > 1 ? count + " medicamentos agora" : firstName(items);
+        String text = count > 1 ? namesSummary(items) : singleDoseText(items);
+        String takenLabel = count > 1 ? "Tomei todos" : "Tomei";
+        String snoozeLabel = count > 1 ? "Adiar todos 10 min" : "Adiar 10 min";
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(medicationName == null ? "Hora do medicamento" : medicationName)
-            .setContentText("Hora do medicamento. Tome " + quantity + (quantity == 1 ? " comprimido." : " comprimidos."))
+            .setContentTitle(title)
+            .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -65,21 +73,49 @@ public class RwsAlarmReceiver extends BroadcastReceiver {
             .setAutoCancel(false)
             .setFullScreenIntent(fullScreenPending, true)
             .setContentIntent(fullScreenPending)
-            .addAction(android.R.drawable.checkbox_on_background, "Tomei", takenPending)
-            .addAction(android.R.drawable.ic_media_pause, "Adiar 10 min", snoozePending);
+            .addAction(android.R.drawable.checkbox_on_background, takenLabel, takenPending)
+            .addAction(android.R.drawable.ic_media_pause, snoozeLabel, snoozePending);
 
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(alarmId, builder.build());
+    }
+
+    public static JSONArray getItems(Intent intent) {
+        try {
+            return new JSONArray(intent.getStringExtra("itemsJson"));
+        } catch (Exception ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private String firstName(JSONArray items) {
+        JSONObject item = items.optJSONObject(0);
+        return item == null ? "Hora do medicamento" : item.optString("medicationName", "Medicamento");
+    }
+
+    private String singleDoseText(JSONArray items) {
+        JSONObject item = items.optJSONObject(0);
+        if (item == null) return "Hora do medicamento.";
+        int quantity = item.optInt("quantity", 1);
+        return "Tome " + quantity + (quantity == 1 ? " comprimido." : " comprimidos.");
+    }
+
+    private String namesSummary(JSONArray items) {
+        StringBuilder builder = new StringBuilder("Hora de tomar: ");
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) continue;
+            if (i > 0) builder.append(i == items.length() - 1 ? " e " : ", ");
+            builder.append(item.optString("medicationName", "Medicamento"));
+        }
+        return builder.toString();
     }
 
     private static Intent copyAlarmIntent(Intent target, Intent source) {
         target.putExtra("alarmId", source.getIntExtra("alarmId", 0));
         target.putExtra("hour", source.getIntExtra("hour", 8));
         target.putExtra("minute", source.getIntExtra("minute", 0));
-        target.putExtra("medicationId", source.getStringExtra("medicationId"));
-        target.putExtra("medicationName", source.getStringExtra("medicationName"));
-        target.putExtra("quantity", source.getIntExtra("quantity", 1));
-        target.putExtra("doseIndex", source.getIntExtra("doseIndex", 0));
+        target.putExtra("itemsJson", source.getStringExtra("itemsJson"));
         target.putExtra("snooze", source.getBooleanExtra("snooze", false));
         return target;
     }
