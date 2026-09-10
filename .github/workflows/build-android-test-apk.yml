@@ -1,4 +1,4 @@
-name: Build RWS Remedios Android Test APK
+name: Build RWS Remedios Android Native Test APK
 
 on:
   push:
@@ -35,10 +35,13 @@ jobs:
         run: npm run build
 
       - name: Create Android project
-        run: npx cap add android
+        run: npm run android:add
 
       - name: Sync Capacitor
-        run: npx cap sync android
+        run: npm run android:sync
+
+      - name: Verify exact alarm permission
+        run: grep -q 'android.permission.SCHEDULE_EXACT_ALARM' android/app/src/main/AndroidManifest.xml
 
       - name: Build debug APK
         working-directory: android
@@ -47,11 +50,11 @@ jobs:
           ./gradlew assembleDebug
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk RWS-Remedios-Teste.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk RWS-Remedios-Nativo-Teste.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RWS-Remedios-Teste
-          path: RWS-Remedios-Teste.apk
+          name: RWS-Remedios-Nativo-Teste
+          path: RWS-Remedios-Nativo-Teste.apk
           if-no-files-found: error
