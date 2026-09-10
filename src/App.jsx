@@ -19,7 +19,7 @@ import Toast from './components/Toast'
 import ModalRecarga from './components/ModalRecarga'
 import styles from './App.module.css'
 
-const SENHA = 'Jessy@0407'
+const SENHA = '12345'
 
 export function calcularEstoque(med, agora = new Date()) {
   const dataInicio = new Date(med.dataCompra)
