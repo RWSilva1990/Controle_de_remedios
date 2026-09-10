@@ -6,8 +6,10 @@ const exactAlarmPermission = '    <uses-permission android:name="android.permiss
 let manifest = await readFile(manifestPath, 'utf8')
 
 if (!manifest.includes('android.permission.SCHEDULE_EXACT_ALARM')) {
-  const manifestOpenEnd = manifest.indexOf('>')
-  if (manifestOpenEnd === -1) {
+  const manifestStart = manifest.indexOf('<manifest')
+  const manifestOpenEnd = manifest.indexOf('>', manifestStart)
+
+  if (manifestStart === -1 || manifestOpenEnd === -1) {
     throw new Error('AndroidManifest.xml inválido: tag <manifest> não encontrada.')
   }
 
