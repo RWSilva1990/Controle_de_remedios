@@ -7,6 +7,12 @@
   background: var(--bg);
 }
 
+.homeShell {
+  background:
+    radial-gradient(circle at 78% 6%, rgba(177, 237, 204, 0.38), transparent 28%),
+    linear-gradient(180deg, #effcf5 0%, #f4faf8 34%, #f6f8fb 72%, #f6f8fb 100%);
+}
+
 .topbar {
   position: sticky;
   top: 0;
