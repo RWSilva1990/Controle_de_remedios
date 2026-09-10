@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
-import { db } from './firebase'
+import {
+  initLocalDb,
+  listMedications,
+  markMedicationDeleted,
+  recordMovement,
+  saveMedication,
+} from './localDb'
+import { importFromFirebaseIfNeeded, syncPendingToFirebase } from './cloudSync'
 import {
   getNotificationStatus,
   openExactAlarmSettings,
@@ -8,7 +14,10 @@ import {
   scheduleMedicationNotifications,
   sendTestNotification,
 } from './notifications'
-import { openFullScreenAlarmSettings } from './nativeAlarm'
+import {
+  consumeNativeAlarmActions,
+  openFullScreenAlarmSettings,
+} from './nativeAlarm'
 import Login from './components/Login'
 import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
@@ -40,6 +49,26 @@ export function calcularEstoque(med, agora = new Date()) {
     dia.setDate(dia.getDate() + 1)
   }
   return Math.max(0, med.total - consumido)
+}
+
+async function registrarAcoesPendentesDoAlarme() {
+  try {
+    const result = await consumeNativeAlarmActions()
+    for (const action of result.actions || []) {
+      const at = Number(action.at || Date.now())
+      await recordMovement({
+        id: `alarm-${action.medicationId}-${action.action}-${at}`,
+        medicamentoId: action.medicationId || null,
+        medicamentoNome: action.medicationName || 'Medicamento',
+        tipo: action.action === 'taken' ? 'dose_confirmada' : 'dose_adiada',
+        quantidade: Number(action.quantity || 0),
+        ocorridoEm: new Date(at).toISOString(),
+        detalhes: { origem: 'alarme_nativo' },
+      })
+    }
+  } catch {
+    // O uso do app não depende do processamento imediato do histórico do alarme.
+  }
 }
 
 export default function App() {
@@ -76,40 +105,53 @@ export default function App() {
   const carregar = useCallback(async () => {
     setLoading(true)
     try {
-      const snap = await getDocs(collection(db, 'medicamentos'))
-      const lista = []
-      snap.forEach(d => lista.push({ id: d.id, ...d.data() }))
+      await initLocalDb()
+      await registrarAcoesPendentesDoAlarme()
+
+      let lista = await listMedications()
+      if (!lista.length) {
+        await importFromFirebaseIfNeeded()
+        lista = await listMedications()
+      }
+
       setMedicamentos(lista)
 
       try {
         await scheduleMedicationNotifications(lista, calcularEstoque)
       } catch {
-        // Falha de agendamento não deve impedir o uso ou carregamento do app.
+        // Falha de agendamento não deve impedir o uso dos dados locais.
       }
-    } catch(e) {
-      showToast('Erro ao carregar dados 😕')
+
+      void syncPendingToFirebase()
+    } catch {
+      showToast('Erro ao acessar os dados locais')
     } finally {
       setLoading(false)
     }
   }, [showToast])
 
   useEffect(() => {
-    if (logado) {
-      atualizarStatusNotificacoes()
-      carregar()
+    if (!logado) return undefined
+
+    atualizarStatusNotificacoes()
+    carregar()
+
+    const handleOnline = () => void syncPendingToFirebase()
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        atualizarStatusNotificacoes()
+        registrarAcoesPendentesDoAlarme().then(() => syncPendingToFirebase())
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [logado, carregar, atualizarStatusNotificacoes])
-
-  useEffect(() => {
-    if (!logado) return undefined
-    const refreshPermissions = () => atualizarStatusNotificacoes()
-    window.addEventListener('focus', refreshPermissions)
-    document.addEventListener('visibilitychange', refreshPermissions)
-    return () => {
-      window.removeEventListener('focus', refreshPermissions)
-      document.removeEventListener('visibilitychange', refreshPermissions)
-    }
-  }, [logado, atualizarStatusNotificacoes])
 
   const handleLogin = (senha) => {
     if (senha === SENHA) setLogado(true)
@@ -173,36 +215,65 @@ export default function App() {
     try {
       if (existente) {
         const estoqueAtual = calcularEstoque(existente)
-        await updateDoc(doc(db, 'medicamentos', existente.id), {
-          total: estoqueAtual + total,
+        await saveMedication({
+          ...existente,
+          total: estoqueAtual + Number(total || 0),
           dataCompra: new Date(Date.now() + 60000).toISOString(),
-          alerta, configDoses
+          alerta,
+          configDoses,
+          atualizadoEm: new Date().toISOString(),
         })
+        if (Number(total || 0) > 0) {
+          await recordMovement({
+            medicamentoId: existente.id,
+            medicamentoNome: nome,
+            tipo: 'compra',
+            quantidade: Number(total),
+            detalhes: { origem: 'cadastro_atualizacao' },
+          })
+        }
         showToast(`✅ ${nome} atualizado!`)
       } else {
-        await addDoc(collection(db, 'medicamentos'), {
-          nome, total, alerta, dataCompra,
+        const novo = await saveMedication({
+          nome,
+          total,
+          alerta,
+          dataCompra,
           configDoses,
-          criadoEm: new Date().toISOString()
+          criadoEm: new Date().toISOString(),
+          atualizadoEm: new Date().toISOString(),
+        })
+        await recordMovement({
+          medicamentoId: novo.id,
+          medicamentoNome: nome,
+          tipo: 'estoque_inicial',
+          quantidade: Number(total || 0),
+          ocorridoEm: dataCompra || new Date().toISOString(),
         })
         showToast(`✅ ${nome} cadastrado!`)
       }
       await carregar()
       setTab('meds')
-    } catch(e) {
-      showToast('Erro ao salvar 😕')
-      throw e
+    } catch {
+      showToast('Erro ao salvar localmente')
+      throw new Error('Falha ao salvar medicamento localmente')
     }
   }
 
   const removerMed = async (id, nome) => {
     if (!window.confirm(`Remover ${nome}?`)) return
     try {
-      await deleteDoc(doc(db, 'medicamentos', id))
+      await markMedicationDeleted(id)
+      await recordMovement({
+        medicamentoId: id,
+        medicamentoNome: nome,
+        tipo: 'medicamento_removido',
+        quantidade: 0,
+      })
       showToast(`🗑️ ${nome} removido`)
       await carregar()
-    } catch(e) {
-      showToast('Erro ao remover')
+    } catch {
+      showToast('Erro ao remover localmente')
     }
   }
 
@@ -210,15 +281,23 @@ export default function App() {
     const med = medicamentos.find(m => m.id === id)
     const estoqueAtual = calcularEstoque(med)
     try {
-      await updateDoc(doc(db, 'medicamentos', id), {
-        total: estoqueAtual + qtd,
-        dataCompra: new Date(Date.now() + 60000).toISOString()
+      await saveMedication({
+        ...med,
+        total: estoqueAtual + Number(qtd),
+        dataCompra: new Date(Date.now() + 60000).toISOString(),
+        atualizadoEm: new Date().toISOString(),
+      })
+      await recordMovement({
+        medicamentoId: id,
+        medicamentoNome: med.nome,
+        tipo: 'compra',
+        quantidade: Number(qtd),
       })
       showToast(`📦 +${qtd} comprimidos adicionados!`)
       setModalMedId(null)
       await carregar()
-    } catch(e) {
-      showToast('Erro ao registrar recarga')
+    } catch {
+      showToast('Erro ao registrar compra localmente')
     }
   }
 
