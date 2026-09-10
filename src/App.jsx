@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from './firebase'
 import Login from './components/Login'
+import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
 import TabAdd from './components/TabAdd'
+import TabHistory from './components/TabHistory'
 import TabConfig from './components/TabConfig'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
@@ -32,14 +34,10 @@ export function calcularEstoque(med, agora = new Date()) {
   return Math.max(0, med.total - consumido)
 }
 
-// ── Agenda alarmes locais via Notification API ──
 function agendarAlarmes(medicamentos) {
   if (Notification.permission !== 'granted') return
-
-  // Limpa intervalos anteriores
   if (window._alarmeInterval) clearInterval(window._alarmeInterval)
 
-  // Verifica a cada minuto se alguma dose bate com a hora atual
   window._alarmeInterval = setInterval(() => {
     const agora = new Date()
     const horaAtual = `${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`
@@ -48,7 +46,6 @@ function agendarAlarmes(medicamentos) {
       const estoque = calcularEstoque(med, agora)
       ;(med.configDoses || []).forEach(dose => {
         if (dose.hora === horaAtual) {
-          // Notificação de dose
           new Notification(`💊 ${med.nome}`, {
             body: `Tome agora ${dose.qtd} comprimido(s). Restam ${estoque}.`,
             icon: '/icon-192.png',
@@ -56,7 +53,6 @@ function agendarAlarmes(medicamentos) {
             vibrate: [200, 100, 200]
           })
 
-          // Verifica estoque mínimo
           const estoqueApos = Math.max(0, estoque - Number(dose.qtd))
           if (estoqueApos <= med.alerta) {
             setTimeout(() => {
@@ -70,17 +66,17 @@ function agendarAlarmes(medicamentos) {
         }
       })
     })
-  }, 60000) // verifica a cada 1 minuto
+  }, 60000)
 }
 
 export default function App() {
-  const [logado, setLogado]             = useState(false)
-  const [tab, setTab]                   = useState('meds')
+  const [logado, setLogado] = useState(false)
+  const [tab, setTab] = useState('home')
   const [medicamentos, setMedicamentos] = useState([])
-  const [loading, setLoading]           = useState(false)
-  const [toast, setToast]               = useState('')
-  const [modalMedId, setModalMedId]     = useState(null)
-  const [notifAtiva, setNotifAtiva]     = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState('')
+  const [modalMedId, setModalMedId] = useState(null)
+  const [notifAtiva, setNotifAtiva] = useState(false)
 
   const showToast = useCallback((msg) => {
     setToast(msg)
@@ -94,7 +90,6 @@ export default function App() {
       const lista = []
       snap.forEach(d => lista.push({ id: d.id, ...d.data() }))
       setMedicamentos(lista)
-      // Reagenda alarmes com dados atualizados
       if (Notification.permission === 'granted') agendarAlarmes(lista)
     } catch(e) {
       showToast('Erro ao carregar dados 😕')
@@ -122,10 +117,9 @@ export default function App() {
       agendarAlarmes(medicamentos)
       showToast('✅ Notificações ativadas!')
       return true
-    } else {
-      showToast('Permissão negada')
-      return false
     }
+    showToast('Permissão negada')
+    return false
   }
 
   const salvarMed = async ({ nome, total, alerta, dataCompra, configDoses }) => {
@@ -185,29 +179,46 @@ export default function App() {
   if (!logado) return <Login onLogin={handleLogin} />
 
   const medModal = medicamentos.find(m => m.id === modalMedId)
+  const showTopbar = tab !== 'home'
 
   return (
     <div className={styles.shell}>
-      <div className={styles.topbar}>
-        <div className={styles.brand}>
-          <span className={styles.dot} />
-          RWS Remédios
+      {showTopbar && (
+        <div className={styles.topbar}>
+          <button
+            className={styles.brandButton}
+            onClick={() => setTab('home')}
+            aria-label="Voltar para o início"
+          >
+            <span className={styles.mark}>R</span>
+            <span>RWS Remédios</span>
+          </button>
+          <button className={styles.iconBtn} onClick={carregar} title="Atualizar" aria-label="Atualizar dados">↻</button>
         </div>
-        <button className={styles.iconBtn} onClick={carregar} title="Atualizar">🔄</button>
-      </div>
+      )}
 
-      <div className={styles.content}>
+      <main className={`${styles.content} ${!showTopbar ? styles.homeContent : ''}`}>
+        {tab === 'home' && (
+          <TabHome
+            medicamentos={medicamentos}
+            loading={loading}
+            onOpenMeds={() => setTab('meds')}
+            onRecarga={id => setModalMedId(id)}
+          />
+        )}
         {tab === 'meds' && (
           <TabMeds
             medicamentos={medicamentos}
             loading={loading}
             onRecarga={id => setModalMedId(id)}
             onRemover={removerMed}
+            onAdd={() => setTab('add')}
           />
         )}
         {tab === 'add' && (
           <TabAdd onSalvar={salvarMed} showToast={showToast} />
         )}
+        {tab === 'history' && <TabHistory />}
         {tab === 'config' && (
           <TabConfig
             notifAtiva={notifAtiva}
@@ -215,9 +226,9 @@ export default function App() {
             showToast={showToast}
           />
         )}
-      </div>
+      </main>
 
-      <BottomNav tab={tab} onTab={setTab} />
+      {tab !== 'add' && <BottomNav tab={tab} onTab={setTab} />}
 
       {medModal && (
         <ModalRecarga
