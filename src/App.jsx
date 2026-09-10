@@ -198,6 +198,28 @@ export default function App() {
     }
   }
 
+  const configurarPermissoesNecessarias = async () => {
+    const status = await atualizarStatusNotificacoes()
+    if (!status) return false
+
+    if (status.display !== 'granted') {
+      return ativarNotificacoes()
+    }
+
+    if (status.exactAlarm !== 'granted' && status.exactAlarm !== 'not-applicable') {
+      showToast('Autorize o uso de alarmes exatos no Android')
+      return configurarAlarmesExatos()
+    }
+
+    if (status.fullScreen !== 'granted' && status.fullScreen !== 'not-applicable') {
+      showToast('Autorize os alarmes em tela cheia no Android')
+      return configurarTelaCheia()
+    }
+
+    showToast('✅ Todas as permissões necessárias estão prontas')
+    return true
+  }
+
   const testarNotificacao = async () => {
     try {
       const ok = await sendTestNotification()
@@ -350,9 +372,7 @@ export default function App() {
             exactAlarmStatus={exactAlarmStatus}
             fullScreenStatus={fullScreenStatus}
             nativeNotifications={nativeNotifications}
-            onAtivarNotif={ativarNotificacoes}
-            onConfigurarAlarmes={configurarAlarmesExatos}
-            onConfigurarTelaCheia={configurarTelaCheia}
+            onConfigurarPermissoes={configurarPermissoesNecessarias}
             onTestarNotif={testarNotificacao}
           />
         )}
