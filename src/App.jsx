@@ -42,9 +42,7 @@ export function calcularEstoque(med, agora = new Date()) {
       const [h, m] = dose.hora.split(':').map(Number)
       const momento = new Date(dia)
       momento.setHours(h, m, 0, 0)
-      if (momento >= dataInicio && momento <= agora) {
-        consumido += Number(dose.qtd)
-      }
+      if (momento >= dataInicio && momento <= agora) consumido += Number(dose.qtd)
     })
     dia.setDate(dia.getDate() + 1)
   }
@@ -74,6 +72,7 @@ async function registrarAcoesPendentesDoAlarme() {
 export default function App() {
   const [logado, setLogado] = useState(false)
   const [tab, setTab] = useState('home')
+  const [editingId, setEditingId] = useState(null)
   const [medicamentos, setMedicamentos] = useState([])
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
@@ -87,6 +86,34 @@ export default function App() {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
   }, [])
+
+  const aplicarEstadoNavegacao = useCallback((state) => {
+    setTab(state?.tab || 'home')
+    setEditingId(state?.editingId || null)
+    setModalMedId(state?.modalMedId || null)
+  }, [])
+
+  const navegar = useCallback((destino, extras = {}) => {
+    const state = {
+      rws: true,
+      tab: destino,
+      editingId: extras.editingId || null,
+      modalMedId: extras.modalMedId || null,
+    }
+    window.history.pushState(state, '')
+    aplicarEstadoNavegacao(state)
+  }, [aplicarEstadoNavegacao])
+
+  const abrirRecarga = useCallback((id) => {
+    const state = { rws: true, tab, editingId: null, modalMedId: id }
+    window.history.pushState(state, '')
+    aplicarEstadoNavegacao(state)
+  }, [tab, aplicarEstadoNavegacao])
+
+  const fecharRecarga = useCallback(() => {
+    if (modalMedId && window.history.state?.rws) window.history.back()
+    else setModalMedId(null)
+  }, [modalMedId])
 
   const atualizarStatusNotificacoes = useCallback(async () => {
     try {
@@ -129,6 +156,22 @@ export default function App() {
       setLoading(false)
     }
   }, [showToast])
+
+  useEffect(() => {
+    if (!logado) return undefined
+
+    const initialState = { rws: true, tab: 'home', editingId: null, modalMedId: null }
+    window.history.replaceState(initialState, '')
+    aplicarEstadoNavegacao(initialState)
+
+    const handlePopState = (event) => {
+      if (event.state?.rws) aplicarEstadoNavegacao(event.state)
+      else aplicarEstadoNavegacao(initialState)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [logado, aplicarEstadoNavegacao])
 
   useEffect(() => {
     if (!logado) return undefined
@@ -201,21 +244,15 @@ export default function App() {
   const configurarPermissoesNecessarias = async () => {
     const status = await atualizarStatusNotificacoes()
     if (!status) return false
-
-    if (status.display !== 'granted') {
-      return ativarNotificacoes()
-    }
-
+    if (status.display !== 'granted') return ativarNotificacoes()
     if (status.exactAlarm !== 'granted' && status.exactAlarm !== 'not-applicable') {
       showToast('Autorize o uso de alarmes exatos no Android')
       return configurarAlarmesExatos()
     }
-
     if (status.fullScreen !== 'granted' && status.fullScreen !== 'not-applicable') {
       showToast('Autorize os alarmes em tela cheia no Android')
       return configurarTelaCheia()
     }
-
     showToast('✅ Todas as permissões necessárias estão prontas')
     return true
   }
@@ -232,28 +269,26 @@ export default function App() {
     }
   }
 
-  const salvarMed = async ({ nome, total, alerta, dataCompra, configDoses }) => {
-    const existente = medicamentos.find(m => m.nome === nome)
+  const salvarMed = async ({ id, modo, nome, total, alerta, dataCompra, configDoses }) => {
     try {
-      if (existente) {
-        const estoqueAtual = calcularEstoque(existente)
+      if (modo === 'editar' && id) {
+        const existente = medicamentos.find(m => m.id === id)
+        if (!existente) throw new Error('Medicamento não encontrado')
+
         await saveMedication({
           ...existente,
-          total: estoqueAtual + Number(total || 0),
-          dataCompra: new Date(Date.now() + 60000).toISOString(),
+          nome,
           alerta,
           configDoses,
           atualizadoEm: new Date().toISOString(),
         })
-        if (Number(total || 0) > 0) {
-          await recordMovement({
-            medicamentoId: existente.id,
-            medicamentoNome: nome,
-            tipo: 'compra',
-            quantidade: Number(total),
-            detalhes: { origem: 'cadastro_atualizacao' },
-          })
-        }
+        await recordMovement({
+          medicamentoId: id,
+          medicamentoNome: nome,
+          tipo: 'medicamento_editado',
+          quantidade: 0,
+          detalhes: { origem: 'edicao' },
+        })
         showToast(`✅ ${nome} atualizado!`)
       } else {
         const novo = await saveMedication({
@@ -274,8 +309,10 @@ export default function App() {
         })
         showToast(`✅ ${nome} cadastrado!`)
       }
+
       await carregar()
-      setTab('meds')
+      if (window.history.state?.rws) window.history.back()
+      else aplicarEstadoNavegacao({ tab: 'meds' })
     } catch {
       showToast('Erro ao salvar localmente')
       throw new Error('Falha ao salvar medicamento localmente')
@@ -316,8 +353,8 @@ export default function App() {
         quantidade: Number(qtd),
       })
       showToast(`📦 +${qtd} comprimidos adicionados!`)
-      setModalMedId(null)
       await carregar()
+      fecharRecarga()
     } catch {
       showToast('Erro ao registrar compra localmente')
     }
@@ -326,6 +363,7 @@ export default function App() {
   if (!logado) return <Login onLogin={handleLogin} />
 
   const medModal = medicamentos.find(m => m.id === modalMedId)
+  const medEditando = medicamentos.find(m => m.id === editingId) || null
   const showTopbar = tab !== 'home'
 
   return (
@@ -334,7 +372,7 @@ export default function App() {
         <div className={styles.topbar}>
           <button
             className={styles.brandButton}
-            onClick={() => setTab('home')}
+            onClick={() => navegar('home')}
             aria-label="Voltar para o início"
           >
             <span className={styles.mark}>R</span>
@@ -349,21 +387,27 @@ export default function App() {
           <TabHome
             medicamentos={medicamentos}
             loading={loading}
-            onOpenMeds={() => setTab('meds')}
-            onRecarga={id => setModalMedId(id)}
+            onOpenMeds={() => navegar('meds')}
+            onRecarga={abrirRecarga}
           />
         )}
         {tab === 'meds' && (
           <TabMeds
             medicamentos={medicamentos}
             loading={loading}
-            onRecarga={id => setModalMedId(id)}
+            onRecarga={abrirRecarga}
             onRemover={removerMed}
-            onAdd={() => setTab('add')}
+            onEditar={id => navegar('add', { editingId: id })}
+            onAdd={() => navegar('add')}
           />
         )}
         {tab === 'add' && (
-          <TabAdd onSalvar={salvarMed} showToast={showToast} />
+          <TabAdd
+            onSalvar={salvarMed}
+            showToast={showToast}
+            medicamento={medEditando}
+            onCancelar={() => window.history.back()}
+          />
         )}
         {tab === 'history' && <TabHistory />}
         {tab === 'config' && (
@@ -378,14 +422,14 @@ export default function App() {
         )}
       </main>
 
-      {tab !== 'add' && <BottomNav tab={tab} onTab={setTab} />}
+      {tab !== 'add' && <BottomNav tab={tab} onTab={destino => navegar(destino)} />}
 
       {medModal && (
         <ModalRecarga
           med={medModal}
           estoqueAtual={calcularEstoque(medModal)}
           onConfirm={(qtd) => confirmarRecarga(modalMedId, qtd)}
-          onClose={() => setModalMedId(null)}
+          onClose={fecharRecarga}
         />
       )}
 
