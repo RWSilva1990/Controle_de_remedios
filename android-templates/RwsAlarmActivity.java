@@ -20,7 +20,11 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -29,6 +33,7 @@ import java.util.Locale;
 public class RwsAlarmActivity extends Activity {
     private Ringtone ringtone;
     private Vibrator vibrator;
+    private JSONArray remainingItems = new JSONArray();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,35 +48,41 @@ public class RwsAlarmActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 
         Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(238, 247, 255));
-        window.setNavigationBarColor(Color.rgb(245, 249, 255));
+        window.setStatusBarColor(Color.rgb(235, 246, 255));
+        window.setNavigationBarColor(Color.rgb(239, 247, 255));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
 
+        remainingItems = RwsAlarmReceiver.getItems(getIntent());
         setContentView(buildContent());
         startAlarmFeedback();
     }
 
     private View buildContent() {
-        Intent intent = getIntent();
-        String medicationName = intent.getStringExtra("medicationName");
-        int quantity = intent.getIntExtra("quantity", 1);
         String currentTime = new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date());
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setPadding(dp(24), dp(36), dp(24), dp(36));
+        root.setPadding(dp(24), dp(34), dp(24), dp(34));
         GradientDrawable bg = new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             new int[] {
-                Color.rgb(232, 245, 255),
-                Color.rgb(242, 248, 255),
-                Color.rgb(247, 250, 255)
+                Color.rgb(236, 247, 255),
+                Color.rgb(244, 250, 255),
+                Color.rgb(229, 243, 255)
             }
         );
         root.setBackground(bg);
+        scroll.addView(root, new ScrollView.LayoutParams(
+            ScrollView.LayoutParams.MATCH_PARENT,
+            ScrollView.LayoutParams.MATCH_PARENT
+        ));
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -87,7 +98,7 @@ public class RwsAlarmActivity extends Activity {
 
         ImageView mark = new ImageView(this);
         mark.setImageResource(R.drawable.rws_app_icon);
-        mark.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        mark.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         brandRow.addView(mark, new LinearLayout.LayoutParams(dp(54), dp(54)));
 
         TextView brand = new TextView(this);
@@ -105,7 +116,7 @@ public class RwsAlarmActivity extends Activity {
 
         TextView time = new TextView(this);
         time.setText(currentTime);
-        time.setTextSize(56);
+        time.setTextSize(54);
         time.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         time.setLetterSpacing(-0.03f);
         time.setTextColor(Color.rgb(20, 31, 55));
@@ -114,11 +125,11 @@ public class RwsAlarmActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        timeParams.topMargin = dp(32);
+        timeParams.topMargin = dp(24);
         content.addView(time, timeParams);
 
         TextView eyebrow = new TextView(this);
-        eyebrow.setText("HORA DO MEDICAMENTO");
+        eyebrow.setText(remainingItems.length() > 1 ? "HORA DOS MEDICAMENTOS" : "HORA DO MEDICAMENTO");
         eyebrow.setTextSize(12);
         eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         eyebrow.setLetterSpacing(0.08f);
@@ -126,72 +137,56 @@ public class RwsAlarmActivity extends Activity {
         eyebrow.setGravity(Gravity.CENTER);
         content.addView(eyebrow);
 
-        LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
-        card.setGravity(Gravity.CENTER_HORIZONTAL);
-        card.setPadding(dp(22), dp(24), dp(22), dp(24));
-        card.setBackground(roundedWithStroke(Color.argb(246, 255, 255, 255), Color.rgb(217, 230, 244), 24, 1));
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+        LinearLayout itemsContainer = new LinearLayout(this);
+        itemsContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams itemsParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        cardParams.topMargin = dp(22);
-        content.addView(card, cardParams);
+        itemsParams.topMargin = dp(18);
+        content.addView(itemsContainer, itemsParams);
 
-        TextView med = new TextView(this);
-        med.setText(medicationName == null ? "Medicamento" : medicationName);
-        med.setTextSize(24);
-        med.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        med.setTextColor(Color.rgb(20, 31, 55));
-        med.setGravity(Gravity.CENTER);
-        card.addView(med);
+        for (int i = 0; i < remainingItems.length(); i++) {
+            final JSONObject item = remainingItems.optJSONObject(i);
+            if (item == null) continue;
+            final LinearLayout card = buildMedicationCard(item, itemsContainer);
+            itemsContainer.addView(card);
+        }
 
-        TextView dose = new TextView(this);
-        dose.setText("Tome " + quantity + (quantity == 1 ? " comprimido" : " comprimidos"));
-        dose.setTextSize(16);
-        dose.setTextColor(Color.rgb(92, 103, 126));
-        dose.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams doseParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        doseParams.topMargin = dp(8);
-        card.addView(dose, doseParams);
+        if (remainingItems.length() > 1) {
+            TextView groupLabel = new TextView(this);
+            groupLabel.setText("Ações para todos os medicamentos pendentes");
+            groupLabel.setTextSize(12);
+            groupLabel.setTextColor(Color.rgb(95, 111, 132));
+            groupLabel.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams groupLabelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            groupLabelParams.topMargin = dp(22);
+            content.addView(groupLabel, groupLabelParams);
 
-        Button taken = new Button(this);
-        taken.setText("Tomei");
-        taken.setTextSize(17);
-        taken.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        taken.setTextColor(Color.WHITE);
-        taken.setAllCaps(false);
-        taken.setBackground(rounded(Color.rgb(22, 119, 238), 16));
-        taken.setStateListAnimator(null);
-        taken.setOnClickListener(v -> handleTaken());
-        LinearLayout.LayoutParams takenParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        );
-        takenParams.topMargin = dp(28);
-        content.addView(taken, takenParams);
+            Button takenAll = makeButton("Tomei todos", true);
+            takenAll.setOnClickListener(v -> handleAllTaken());
+            LinearLayout.LayoutParams takenAllParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(54)
+            );
+            takenAllParams.topMargin = dp(10);
+            content.addView(takenAll, takenAllParams);
 
-        Button snooze = new Button(this);
-        snooze.setText("Adiar 10 min");
-        snooze.setTextSize(16);
-        snooze.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        snooze.setTextColor(Color.rgb(63, 88, 115));
-        snooze.setAllCaps(false);
-        snooze.setBackground(roundedWithStroke(Color.argb(244, 255, 255, 255), Color.rgb(209, 225, 242), 16, 1));
-        snooze.setStateListAnimator(null);
-        snooze.setOnClickListener(v -> handleSnooze());
-        LinearLayout.LayoutParams snoozeParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        );
-        snoozeParams.topMargin = dp(12);
-        content.addView(snooze, snoozeParams);
+            Button snoozeAll = makeButton("Adiar todos 10 min", false);
+            snoozeAll.setOnClickListener(v -> handleAllSnooze());
+            LinearLayout.LayoutParams snoozeAllParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(54)
+            );
+            snoozeAllParams.topMargin = dp(10);
+            content.addView(snoozeAll, snoozeAllParams);
+        }
 
         TextView hint = new TextView(this);
-        hint.setText("O alarme continuará tocando até você escolher uma opção.");
+        hint.setText("O alarme continuará tocando enquanto houver medicamento pendente.");
         hint.setTextSize(12);
         hint.setTextColor(Color.rgb(112, 132, 143));
         hint.setGravity(Gravity.CENTER);
@@ -199,10 +194,137 @@ public class RwsAlarmActivity extends Activity {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        hintParams.topMargin = dp(18);
+        hintParams.topMargin = dp(16);
         content.addView(hint, hintParams);
 
-        return root;
+        return scroll;
+    }
+
+    private LinearLayout buildMedicationCard(JSONObject item, LinearLayout itemsContainer) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(18), dp(18), dp(16));
+        card.setBackground(roundedWithStroke(Color.argb(246, 255, 255, 255), Color.rgb(211, 229, 246), 22, 1));
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        cardParams.bottomMargin = dp(10);
+        card.setLayoutParams(cardParams);
+
+        TextView med = new TextView(this);
+        med.setText(item.optString("medicationName", "Medicamento"));
+        med.setTextSize(21);
+        med.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        med.setTextColor(Color.rgb(20, 31, 55));
+        med.setGravity(Gravity.CENTER);
+        card.addView(med);
+
+        int quantity = item.optInt("quantity", 1);
+        TextView dose = new TextView(this);
+        dose.setText("Tome " + quantity + (quantity == 1 ? " comprimido" : " comprimidos"));
+        dose.setTextSize(15);
+        dose.setTextColor(Color.rgb(92, 103, 126));
+        dose.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams doseParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        doseParams.topMargin = dp(5);
+        card.addView(dose, doseParams);
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams actionsParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            dp(48)
+        );
+        actionsParams.topMargin = dp(14);
+        card.addView(actions, actionsParams);
+
+        Button taken = makeButton("Tomei", true);
+        LinearLayout.LayoutParams halfOne = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+        halfOne.rightMargin = dp(5);
+        actions.addView(taken, halfOne);
+
+        Button snooze = makeButton("Adiar 10 min", false);
+        LinearLayout.LayoutParams halfTwo = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+        halfTwo.leftMargin = dp(5);
+        actions.addView(snooze, halfTwo);
+
+        taken.setOnClickListener(v -> handleSingle(item, card, itemsContainer, false));
+        snooze.setOnClickListener(v -> handleSingle(item, card, itemsContainer, true));
+        return card;
+    }
+
+    private Button makeButton(String text, boolean primary) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setTextSize(primary ? 15 : 14);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setTextColor(primary ? Color.WHITE : Color.rgb(46, 79, 112));
+        button.setAllCaps(false);
+        button.setBackground(primary
+            ? rounded(Color.rgb(22, 119, 238), 15)
+            : roundedWithStroke(Color.argb(242, 255, 255, 255), Color.rgb(196, 219, 241), 15, 1));
+        button.setStateListAnimator(null);
+        return button;
+    }
+
+    private void handleSingle(JSONObject item, View card, LinearLayout container, boolean snooze) {
+        String action = snooze ? "snoozed" : "taken";
+        RwsAlarmActions.add(
+            this,
+            action,
+            item.optString("medicationId", ""),
+            item.optString("medicationName", "Medicamento"),
+            item.optInt("quantity", 1)
+        );
+        if (snooze) RwsAlarmScheduler.snoozeItem(this, getIntent(), item, 10);
+        removeRemaining(item);
+        container.removeView(card);
+        if (remainingItems.length() == 0) dismissAlarm();
+    }
+
+    private void handleAllTaken() {
+        recordRemaining("taken");
+        dismissAlarm();
+    }
+
+    private void handleAllSnooze() {
+        recordRemaining("snoozed");
+        Intent copy = new Intent(getIntent());
+        copy.putExtra("itemsJson", remainingItems.toString());
+        RwsAlarmScheduler.snooze(this, copy, 10);
+        dismissAlarm();
+    }
+
+    private void recordRemaining(String action) {
+        for (int i = 0; i < remainingItems.length(); i++) {
+            JSONObject item = remainingItems.optJSONObject(i);
+            if (item == null) continue;
+            RwsAlarmActions.add(
+                this,
+                action,
+                item.optString("medicationId", ""),
+                item.optString("medicationName", "Medicamento"),
+                item.optInt("quantity", 1)
+            );
+        }
+    }
+
+    private void removeRemaining(JSONObject target) {
+        String targetId = target.optString("medicationId", "");
+        int targetDose = target.optInt("doseIndex", -1);
+        for (int i = remainingItems.length() - 1; i >= 0; i--) {
+            JSONObject item = remainingItems.optJSONObject(i);
+            if (item == null) continue;
+            if (targetId.equals(item.optString("medicationId", "")) && targetDose == item.optInt("doseIndex", -1)) {
+                remainingItems.remove(i);
+                return;
+            }
+        }
     }
 
     private GradientDrawable rounded(int color, int radiusDp) {
@@ -220,19 +342,6 @@ public class RwsAlarmActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private void handleTaken() {
-        Intent intent = getIntent();
-        RwsAlarmActions.add(this, "taken", intent.getStringExtra("medicationId"), intent.getStringExtra("medicationName"), intent.getIntExtra("quantity", 1));
-        dismissAlarm();
-    }
-
-    private void handleSnooze() {
-        Intent intent = getIntent();
-        RwsAlarmActions.add(this, "snoozed", intent.getStringExtra("medicationId"), intent.getStringExtra("medicationName"), intent.getIntExtra("quantity", 1));
-        RwsAlarmScheduler.snooze(this, intent, 10);
-        dismissAlarm();
     }
 
     private void startAlarmFeedback() {
