@@ -4,6 +4,7 @@ import { CapacitorSQLite, SQLiteConnection } from '@capacitor-community/sqlite'
 const DB_NAME = 'rws_remedios'
 const DB_VERSION = 1
 const WEB_KEY = 'rws-remedios-offline-db-v1'
+const PROFILE_KEY = 'userProfile'
 
 let sqlite = null
 let nativeDb = null
@@ -208,9 +209,7 @@ export async function markMedicationSynced(id) {
 export async function importMedicationsIfEmpty(items) {
   const current = await listAllMedicationRows()
   if (current.length || !items?.length) return false
-  for (const item of items) {
-    await saveMedication(item, { synced: true })
-  }
+  for (const item of items) await saveMedication(item, { synced: true })
   await setMeta('cloudImported', nowIso())
   return true
 }
@@ -298,4 +297,30 @@ export async function setMeta(chave, valor) {
     return
   }
   await nativeDb.run('INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)', [chave, valor])
+}
+
+export async function getUserProfile() {
+  const raw = await getMeta(PROFILE_KEY)
+  if (!raw) return { nome: '', idade: '', tipoSanguineo: '', telefone: '', foto: '' }
+  try {
+    return {
+      nome: '', idade: '', tipoSanguineo: '', telefone: '', foto: '',
+      ...JSON.parse(raw),
+    }
+  } catch {
+    return { nome: '', idade: '', tipoSanguineo: '', telefone: '', foto: '' }
+  }
+}
+
+export async function saveUserProfile(profile) {
+  const normalized = {
+    nome: String(profile.nome || '').trim(),
+    idade: profile.idade === '' ? '' : Number(profile.idade),
+    tipoSanguineo: String(profile.tipoSanguineo || ''),
+    telefone: String(profile.telefone || '').trim(),
+    foto: String(profile.foto || ''),
+    atualizadoEm: nowIso(),
+  }
+  await setMeta(PROFILE_KEY, JSON.stringify(normalized))
+  return normalized
 }
