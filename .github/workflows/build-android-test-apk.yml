@@ -40,8 +40,11 @@ jobs:
       - name: Sync Capacitor
         run: npm run android:sync
 
-      - name: Verify exact alarm permission
-        run: grep -q 'android.permission.SCHEDULE_EXACT_ALARM' android/app/src/main/AndroidManifest.xml
+      - name: Verify alarm permissions
+        run: |
+          grep -q 'android.permission.SCHEDULE_EXACT_ALARM' android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.USE_FULL_SCREEN_INTENT' android/app/src/main/AndroidManifest.xml
+          grep -q '.RwsAlarmActivity' android/app/src/main/AndroidManifest.xml
 
       - name: Build debug APK
         working-directory: android
@@ -50,11 +53,11 @@ jobs:
           ./gradlew assembleDebug
 
       - name: Rename APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk RWS-Remedios-Nativo-Teste.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk RWS-Remedios-Alarme-Teste.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RWS-Remedios-Nativo-Teste
-          path: RWS-Remedios-Nativo-Teste.apk
+          name: RWS-Remedios-Alarme-Teste
+          path: RWS-Remedios-Alarme-Teste.apk
           if-no-files-found: error
