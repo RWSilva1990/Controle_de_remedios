@@ -22,7 +22,6 @@ import {
   consumeNativeAlarmActions,
   openFullScreenAlarmSettings,
 } from './nativeAlarm'
-import Login from './components/Login'
 import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
 import TabAdd from './components/TabAdd'
@@ -34,7 +33,6 @@ import Toast from './components/Toast'
 import ModalRecarga from './components/ModalRecarga'
 import styles from './App.module.css'
 
-const SENHA = '12345'
 const EMPTY_PROFILE = { nome: '', idade: '', tipoSanguineo: '', telefone: '', foto: '' }
 
 export function calcularEstoque(med, agora = new Date()) {
@@ -76,7 +74,6 @@ async function registrarAcoesPendentesDoAlarme() {
 }
 
 export default function App() {
-  const [logado, setLogado] = useState(false)
   const [tab, setTab] = useState('home')
   const [editingId, setEditingId] = useState(null)
   const [profile, setProfile] = useState(EMPTY_PROFILE)
@@ -128,13 +125,11 @@ export default function App() {
       }
 
       setMedicamentos(lista)
-
       try {
         await scheduleMedicationNotifications(lista, calcularEstoque)
       } catch {
         // Falha de agendamento não deve impedir o uso dos dados locais.
       }
-
       void syncPendingToFirebase()
     } catch {
       showToast('Erro ao acessar os dados locais')
@@ -144,8 +139,6 @@ export default function App() {
   }, [showToast])
 
   useEffect(() => {
-    if (!logado) return undefined
-
     atualizarStatusNotificacoes()
     carregar()
 
@@ -159,16 +152,14 @@ export default function App() {
 
     window.addEventListener('online', handleOnline)
     document.addEventListener('visibilitychange', handleVisibility)
-
     return () => {
       window.removeEventListener('online', handleOnline)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [logado, carregar, atualizarStatusNotificacoes])
+  }, [carregar, atualizarStatusNotificacoes])
 
   useEffect(() => {
-    if (!logado || Capacitor.getPlatform() !== 'android') return undefined
-
+    if (Capacitor.getPlatform() !== 'android') return undefined
     let listenerHandle
     CapacitorApp.addListener('backButton', () => {
       if (modalMedId) {
@@ -179,30 +170,21 @@ export default function App() {
         }
         return
       }
-
       if (tab !== 'home') {
         setEditingId(null)
         setTab('home')
         return
       }
-
       const now = Date.now()
       if (now - lastBackAt.current <= 2200) {
         CapacitorApp.exitApp()
         return
       }
-
       lastBackAt.current = now
       showToast('Pressione novamente para sair')
     }).then(handle => { listenerHandle = handle })
-
     return () => listenerHandle?.remove()
-  }, [logado, tab, modalMedId, showToast])
-
-  const handleLogin = (senha) => {
-    if (senha === SENHA) setLogado(true)
-    else showToast('Senha incorreta')
-  }
+  }, [tab, modalMedId, showToast])
 
   const ativarNotificacoes = async () => {
     let permission
@@ -212,21 +194,15 @@ export default function App() {
       showToast('Não foi possível solicitar a permissão de notificações')
       return false
     }
-
     if (permission !== 'granted') {
       showToast('Permissão de notificações não concedida')
       return false
     }
-
     setNotifAtiva(true)
     showToast('✅ Notificações ativadas!')
-
     try {
       await scheduleMedicationNotifications(medicamentos, calcularEstoque)
-    } catch {
-      // A permissão já foi concedida; o agendamento será tentado novamente ao carregar o app.
-    }
-
+    } catch {}
     setTimeout(() => void atualizarStatusNotificacoes(), 350)
     return true
   }
@@ -292,42 +268,14 @@ export default function App() {
       if (modo === 'editar' && id) {
         const existente = medicamentos.find(m => m.id === id)
         if (!existente) throw new Error('Medicamento não encontrado')
-
-        await saveMedication({
-          ...existente,
-          nome,
-          alerta,
-          configDoses,
-          atualizadoEm: new Date().toISOString(),
-        })
-        await recordMovement({
-          medicamentoId: id,
-          medicamentoNome: nome,
-          tipo: 'medicamento_editado',
-          quantidade: 0,
-          detalhes: { origem: 'edicao' },
-        })
+        await saveMedication({ ...existente, nome, alerta, configDoses, atualizadoEm: new Date().toISOString() })
+        await recordMovement({ medicamentoId: id, medicamentoNome: nome, tipo: 'medicamento_editado', quantidade: 0, detalhes: { origem: 'edicao' } })
         showToast(`✅ ${nome} atualizado!`)
       } else {
-        const novo = await saveMedication({
-          nome,
-          total,
-          alerta,
-          dataCompra,
-          configDoses,
-          criadoEm: new Date().toISOString(),
-          atualizadoEm: new Date().toISOString(),
-        })
-        await recordMovement({
-          medicamentoId: novo.id,
-          medicamentoNome: nome,
-          tipo: 'estoque_inicial',
-          quantidade: Number(total || 0),
-          ocorridoEm: dataCompra || new Date().toISOString(),
-        })
+        const novo = await saveMedication({ nome, total, alerta, dataCompra, configDoses, criadoEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() })
+        await recordMovement({ medicamentoId: novo.id, medicamentoNome: nome, tipo: 'estoque_inicial', quantidade: Number(total || 0), ocorridoEm: dataCompra || new Date().toISOString() })
         showToast(`✅ ${nome} cadastrado!`)
       }
-
       await carregar()
       setEditingId(null)
       setTab('meds')
@@ -341,12 +289,7 @@ export default function App() {
     if (!window.confirm(`Remover ${nome}?`)) return
     try {
       await markMedicationDeleted(id)
-      await recordMovement({
-        medicamentoId: id,
-        medicamentoNome: nome,
-        tipo: 'medicamento_removido',
-        quantidade: 0,
-      })
+      await recordMovement({ medicamentoId: id, medicamentoNome: nome, tipo: 'medicamento_removido', quantidade: 0 })
       showToast(`🗑️ ${nome} removido`)
       await carregar()
     } catch {
@@ -358,18 +301,8 @@ export default function App() {
     const med = medicamentos.find(m => m.id === id)
     const estoqueAtual = calcularEstoque(med)
     try {
-      await saveMedication({
-        ...med,
-        total: estoqueAtual + Number(qtd),
-        dataCompra: new Date(Date.now() + 60000).toISOString(),
-        atualizadoEm: new Date().toISOString(),
-      })
-      await recordMovement({
-        medicamentoId: id,
-        medicamentoNome: med.nome,
-        tipo: 'compra',
-        quantidade: Number(qtd),
-      })
+      await saveMedication({ ...med, total: estoqueAtual + Number(qtd), dataCompra: new Date(Date.now() + 60000).toISOString(), atualizadoEm: new Date().toISOString() })
+      await recordMovement({ medicamentoId: id, medicamentoNome: med.nome, tipo: 'compra', quantidade: Number(qtd) })
       showToast(`📦 +${qtd} comprimidos adicionados!`)
       setModalMedId(null)
       await carregar()
@@ -377,8 +310,6 @@ export default function App() {
       showToast('Erro ao registrar compra localmente')
     }
   }
-
-  if (!logado) return <Login onLogin={handleLogin} />
 
   const medModal = medicamentos.find(m => m.id === modalMedId)
   const medEditando = medicamentos.find(m => m.id === editingId) || null
@@ -389,67 +320,21 @@ export default function App() {
       {showTopbar && (
         <div className={styles.topbar}>
           <button className={styles.brandButton} onClick={() => navegar('home')} aria-label="Voltar para o início">
-            <span className={styles.mark}>R</span>
-            <span>RWS Remédios</span>
+            <span className={styles.mark}>R</span><span>RWS Remédios</span>
           </button>
           <button className={styles.iconBtn} onClick={carregar} title="Atualizar" aria-label="Atualizar dados">↻</button>
         </div>
       )}
-
       <main className={`${styles.content} ${!showTopbar ? styles.homeContent : ''}`}>
-        {tab === 'home' && (
-          <TabHome
-            medicamentos={medicamentos}
-            loading={loading}
-            profile={profile}
-            onOpenProfile={() => navegar('profile')}
-            onOpenMeds={() => navegar('meds')}
-            onRecarga={id => setModalMedId(id)}
-          />
-        )}
-        {tab === 'meds' && (
-          <TabMeds
-            medicamentos={medicamentos}
-            loading={loading}
-            onRecarga={id => setModalMedId(id)}
-            onRemover={removerMed}
-            onEditar={id => navegar('add', { editingId: id })}
-            onAdd={() => navegar('add')}
-          />
-        )}
-        {tab === 'add' && (
-          <TabAdd
-            onSalvar={salvarMed}
-            showToast={showToast}
-            medicamento={medEditando}
-            onCancelar={() => navegar('meds')}
-          />
-        )}
+        {tab === 'home' && <TabHome medicamentos={medicamentos} loading={loading} profile={profile} onOpenProfile={() => navegar('profile')} onOpenMeds={() => navegar('meds')} onRecarga={id => setModalMedId(id)} />}
+        {tab === 'meds' && <TabMeds medicamentos={medicamentos} loading={loading} onRecarga={id => setModalMedId(id)} onRemover={removerMed} onEditar={id => navegar('add', { editingId: id })} onAdd={() => navegar('add')} />}
+        {tab === 'add' && <TabAdd onSalvar={salvarMed} showToast={showToast} medicamento={medEditando} onCancelar={() => navegar('meds')} />}
         {tab === 'history' && <TabHistory />}
         {tab === 'profile' && <TabProfile profile={profile} onSave={salvarPerfil} showToast={showToast} />}
-        {tab === 'config' && (
-          <TabConfig
-            notifAtiva={notifAtiva}
-            exactAlarmStatus={exactAlarmStatus}
-            fullScreenStatus={fullScreenStatus}
-            nativeNotifications={nativeNotifications}
-            onConfigurarPermissoes={configurarPermissoesNecessarias}
-            onTestarNotif={testarNotificacao}
-          />
-        )}
+        {tab === 'config' && <TabConfig notifAtiva={notifAtiva} exactAlarmStatus={exactAlarmStatus} fullScreenStatus={fullScreenStatus} nativeNotifications={nativeNotifications} onConfigurarPermissoes={configurarPermissoesNecessarias} onTestarNotif={testarNotificacao} />}
       </main>
-
       {tab !== 'add' && <BottomNav tab={tab} onTab={navegar} />}
-
-      {medModal && (
-        <ModalRecarga
-          med={medModal}
-          estoqueAtual={calcularEstoque(medModal)}
-          onConfirm={(qtd) => confirmarRecarga(modalMedId, qtd)}
-          onClose={() => setModalMedId(null)}
-        />
-      )}
-
+      {medModal && <ModalRecarga med={medModal} estoqueAtual={calcularEstoque(medModal)} onConfirm={(qtd) => confirmarRecarga(modalMedId, qtd)} onClose={() => setModalMedId(null)} />}
       <Toast msg={toast} />
     </div>
   )
