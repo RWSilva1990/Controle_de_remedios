@@ -43,8 +43,8 @@ public class RwsAlarmActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 
         Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(225, 246, 235));
-        window.setNavigationBarColor(Color.rgb(237, 247, 244));
+        window.setStatusBarColor(Color.rgb(238, 247, 255));
+        window.setNavigationBarColor(Color.rgb(245, 249, 255));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
@@ -66,9 +66,9 @@ public class RwsAlarmActivity extends Activity {
         GradientDrawable bg = new GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             new int[] {
-                Color.rgb(221, 247, 232),
-                Color.rgb(238, 249, 244),
-                Color.rgb(232, 244, 255)
+                Color.rgb(232, 245, 255),
+                Color.rgb(242, 248, 255),
+                Color.rgb(247, 250, 255)
             }
         );
         root.setBackground(bg);
@@ -130,7 +130,7 @@ public class RwsAlarmActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
         card.setPadding(dp(22), dp(24), dp(22), dp(24));
-        card.setBackground(roundedWithStroke(Color.argb(242, 255, 255, 255), Color.rgb(224, 235, 236), 24, 1));
+        card.setBackground(roundedWithStroke(Color.argb(246, 255, 255, 255), Color.rgb(217, 230, 244), 24, 1));
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
@@ -180,7 +180,7 @@ public class RwsAlarmActivity extends Activity {
         snooze.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         snooze.setTextColor(Color.rgb(63, 88, 115));
         snooze.setAllCaps(false);
-        snooze.setBackground(roundedWithStroke(Color.argb(238, 255, 255, 255), Color.rgb(215, 231, 233), 16, 1));
+        snooze.setBackground(roundedWithStroke(Color.argb(244, 255, 255, 255), Color.rgb(209, 225, 242), 16, 1));
         snooze.setStateListAnimator(null);
         snooze.setOnClickListener(v -> handleSnooze());
         LinearLayout.LayoutParams snoozeParams = new LinearLayout.LayoutParams(
