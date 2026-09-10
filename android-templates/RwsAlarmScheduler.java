@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,43 +19,32 @@ public final class RwsAlarmScheduler {
 
     private RwsAlarmScheduler() {}
 
-    public static void scheduleDailyAlarm(Context context, int id, int hour, int minute,
-                                          String medicationId, String medicationName,
-                                          int quantity, int doseIndex) {
+    public static void scheduleDailyAlarm(Context context, int id, int hour, int minute, String itemsJson) {
         Calendar when = Calendar.getInstance();
         when.set(Calendar.HOUR_OF_DAY, hour);
         when.set(Calendar.MINUTE, minute);
         when.set(Calendar.SECOND, 0);
         when.set(Calendar.MILLISECOND, 0);
-        if (when.getTimeInMillis() <= System.currentTimeMillis()) {
-            when.add(Calendar.DAY_OF_YEAR, 1);
-        }
-
-        scheduleAt(context, id, when.getTimeInMillis(), hour, minute, medicationId,
-            medicationName, quantity, doseIndex, false);
+        if (when.getTimeInMillis() <= System.currentTimeMillis()) when.add(Calendar.DAY_OF_YEAR, 1);
+        scheduleAt(context, id, when.getTimeInMillis(), hour, minute, itemsJson, false);
         rememberId(context, id);
     }
 
     public static void scheduleNextDaily(Context context, Intent source) {
         if (source.getBooleanExtra("snooze", false)) return;
-
         Calendar when = Calendar.getInstance();
         when.add(Calendar.DAY_OF_YEAR, 1);
         when.set(Calendar.HOUR_OF_DAY, source.getIntExtra("hour", 8));
         when.set(Calendar.MINUTE, source.getIntExtra("minute", 0));
         when.set(Calendar.SECOND, 0);
         when.set(Calendar.MILLISECOND, 0);
-
         scheduleAt(
             context,
             source.getIntExtra("alarmId", 0),
             when.getTimeInMillis(),
             source.getIntExtra("hour", 8),
             source.getIntExtra("minute", 0),
-            source.getStringExtra("medicationId"),
-            source.getStringExtra("medicationName"),
-            source.getIntExtra("quantity", 1),
-            source.getIntExtra("doseIndex", 0),
+            source.getStringExtra("itemsJson"),
             false
         );
     }
@@ -67,26 +59,37 @@ public final class RwsAlarmScheduler {
             triggerAt,
             source.getIntExtra("hour", 8),
             source.getIntExtra("minute", 0),
-            source.getStringExtra("medicationId"),
-            source.getStringExtra("medicationName"),
-            source.getIntExtra("quantity", 1),
-            source.getIntExtra("doseIndex", 0),
+            source.getStringExtra("itemsJson"),
+            true
+        );
+    }
+
+    public static void snoozeItem(Context context, Intent source, JSONObject item, int minutes) {
+        String medicationId = item.optString("medicationId", "med");
+        int doseIndex = item.optInt("doseIndex", 0);
+        int snoozeId = 7000000 + Math.abs((medicationId + ":" + doseIndex).hashCode() % 900000);
+        JSONArray array = new JSONArray();
+        array.put(item);
+        long triggerAt = System.currentTimeMillis() + (minutes * 60L * 1000L);
+        scheduleAt(
+            context,
+            snoozeId,
+            triggerAt,
+            source.getIntExtra("hour", 8),
+            source.getIntExtra("minute", 0),
+            array.toString(),
             true
         );
     }
 
     private static void scheduleAt(Context context, int id, long triggerAt, int hour, int minute,
-                                   String medicationId, String medicationName,
-                                   int quantity, int doseIndex, boolean snooze) {
+                                   String itemsJson, boolean snooze) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, RwsAlarmReceiver.class);
         intent.putExtra("alarmId", id);
         intent.putExtra("hour", hour);
         intent.putExtra("minute", minute);
-        intent.putExtra("medicationId", medicationId);
-        intent.putExtra("medicationName", medicationName);
-        intent.putExtra("quantity", quantity);
-        intent.putExtra("doseIndex", doseIndex);
+        intent.putExtra("itemsJson", itemsJson == null ? "[]" : itemsJson);
         intent.putExtra("snooze", snooze);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
@@ -97,6 +100,11 @@ public final class RwsAlarmScheduler {
         );
 
         Intent showIntent = new Intent(context, RwsAlarmActivity.class);
+        showIntent.putExtra("alarmId", id);
+        showIntent.putExtra("hour", hour);
+        showIntent.putExtra("minute", minute);
+        showIntent.putExtra("itemsJson", itemsJson == null ? "[]" : itemsJson);
+        showIntent.putExtra("snooze", snooze);
         PendingIntent showPendingIntent = PendingIntent.getActivity(
             context,
             id + 100000,
