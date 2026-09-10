@@ -75,7 +75,53 @@ for (const file of javaFiles) {
 }
 
 await mkdir(drawableDir, { recursive: true })
-await copyFile('public/icon-512.png', `${drawableDir}/rws_app_icon.png`)
+const appIconVector = `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <path
+        android:fillColor="#168DDE"
+        android:pathData="M0,0h512v512h-512z" />
+    <path
+        android:fillColor="#33C9D0"
+        android:fillAlpha="0.55"
+        android:pathData="M0,0h300v512h-300z" />
+    <group
+        android:pivotX="190"
+        android:pivotY="250"
+        android:rotation="-45">
+        <path
+            android:fillColor="#E7FBFF"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="12"
+            android:pathData="M190,105 C150,105 118,137 118,177 L118,323 C118,363 150,395 190,395 C230,395 262,363 262,323 L262,177 C262,137 230,105 190,105 Z" />
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#168DDE"
+            android:strokeWidth="18"
+            android:pathData="M118,250 L262,250" />
+    </group>
+    <path
+        android:fillColor="#0D70C9"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="15"
+        android:pathData="M338,245 A92,92 0,1 0,338 429 A92,92 0,1 0,338 245" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="15"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M338,286 L338,340 L375,363" />
+    <path android:fillColor="#FFFFFF" android:pathData="M338,263 A7,7 0,1 0,338 277 A7,7 0,1 0,338 263" />
+    <path android:fillColor="#FFFFFF" android:pathData="M405,330 A7,7 0,1 0,405 344 A7,7 0,1 0,405 330" />
+    <path android:fillColor="#FFFFFF" android:pathData="M338,397 A7,7 0,1 0,338 411 A7,7 0,1 0,338 397" />
+    <path android:fillColor="#FFFFFF" android:pathData="M271,330 A7,7 0,1 0,271 344 A7,7 0,1 0,271 330" />
+</vector>
+`
+await writeFile(`${drawableDir}/rws_app_icon.xml`, appIconVector, 'utf8')
 
 const mainActivity = `package br.com.rwsilva.remedios;
 
@@ -92,4 +138,4 @@ public class MainActivity extends BridgeActivity {
 `
 
 await writeFile(`${javaDir}/MainActivity.java`, mainActivity, 'utf8')
-console.log('Android configurado com alarmes nativos e ícone RWS Remédios.')
+console.log('Android configurado com alarmes nativos e novo ícone cápsula + relógio.')
