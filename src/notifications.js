@@ -82,7 +82,13 @@ export async function requestNotificationPermission() {
   }
 
   const result = await LocalNotifications.requestPermissions()
-  if (result.display === 'granted') await ensureAndroidChannels()
+  if (result.display === 'granted') {
+    try {
+      await ensureAndroidChannels()
+    } catch {
+      // A permissão já foi concedida. Falha ao criar canal não deve ser reportada como recusa.
+    }
+  }
   return result.display
 }
 
@@ -137,9 +143,7 @@ function nextStockAlert(med, calcularEstoque, agora = new Date()) {
 
   if (!doses.length) return null
 
-  if (estoque <= alerta) {
-    return { at: new Date(agora.getTime() + 10000), remaining: estoque }
-  }
+  if (estoque <= alerta) return { at: new Date(agora.getTime() + 10000), remaining: estoque }
 
   const cursor = new Date(agora)
   cursor.setSeconds(0, 0)
@@ -152,9 +156,7 @@ function nextStockAlert(med, calcularEstoque, agora = new Date()) {
       if (momento <= agora) continue
 
       estoque = Math.max(0, estoque - dose.qtd)
-      if (estoque <= alerta) {
-        return { at: new Date(momento.getTime() + 5000), remaining: estoque }
-      }
+      if (estoque <= alerta) return { at: new Date(momento.getTime() + 5000), remaining: estoque }
     }
   }
 
@@ -195,17 +197,12 @@ export async function scheduleMedicationNotifications(medicamentos, calcularEsto
 
   await ensureAndroidChannels()
 
-  // Remove lembretes locais antigos de dose/estoque para evitar duplicidade após a migração.
   const pending = await LocalNotifications.getPending()
   const ours = pending.notifications.filter(item => item.id >= 1000000 && item.id < 3000000)
-  if (ours.length) {
-    await LocalNotifications.cancel({ notifications: ours.map(item => ({ id: item.id })) })
-  }
+  if (ours.length) await LocalNotifications.cancel({ notifications: ours.map(item => ({ id: item.id })) })
 
-  // Doses passam a ser alarmes Android reais, independentes da WebView.
   await scheduleNativeDoseAlarms(medicamentos)
 
-  // Alertas de estoque continuam como notificações comuns.
   const notifications = []
 
   medicamentos.forEach(med => {
@@ -221,11 +218,7 @@ export async function scheduleMedicationNotifications(medicamentos, calcularEsto
             body: `O estoque está chegando ao mínimo de ${med.alerta} comprimido(s). Providencie uma nova compra.`,
             channelId: STOCK_CHANNEL,
             schedule: { at, allowWhileIdle: true },
-            extra: {
-              source: 'rws-remedios',
-              type: 'stock',
-              medicationId: med.id,
-            },
+            extra: { source: 'rws-remedios', type: 'stock', medicationId: med.id },
           })
         }
       }
@@ -241,18 +234,12 @@ export async function scheduleMedicationNotifications(medicamentos, calcularEsto
       body: `Restarão aproximadamente ${projected.remaining} comprimido(s). Providencie uma nova compra.`,
       channelId: STOCK_CHANNEL,
       schedule: { at: projected.at, allowWhileIdle: true },
-      extra: {
-        source: 'rws-remedios',
-        type: 'stock',
-        medicationId: med.id,
-      },
+      extra: { source: 'rws-remedios', type: 'stock', medicationId: med.id },
     })
     storeStockAlert(med, projected.at)
   })
 
-  if (notifications.length) {
-    await LocalNotifications.schedule({ notifications })
-  }
+  if (notifications.length) await LocalNotifications.schedule({ notifications })
 
   return { native: true, scheduled: true, stockCount: notifications.length }
 }
