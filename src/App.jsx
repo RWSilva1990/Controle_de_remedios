@@ -8,6 +8,7 @@ import {
   scheduleMedicationNotifications,
   sendTestNotification,
 } from './notifications'
+import { openFullScreenAlarmSettings } from './nativeAlarm'
 import Login from './components/Login'
 import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
@@ -50,6 +51,7 @@ export default function App() {
   const [modalMedId, setModalMedId] = useState(null)
   const [notifAtiva, setNotifAtiva] = useState(false)
   const [exactAlarmStatus, setExactAlarmStatus] = useState('not-applicable')
+  const [fullScreenStatus, setFullScreenStatus] = useState('not-applicable')
   const [nativeNotifications, setNativeNotifications] = useState(false)
 
   const showToast = useCallback((msg) => {
@@ -62,6 +64,7 @@ export default function App() {
       const status = await getNotificationStatus()
       setNotifAtiva(status.display === 'granted')
       setExactAlarmStatus(status.exactAlarm)
+      setFullScreenStatus(status.fullScreen)
       setNativeNotifications(status.native)
       return status
     } catch {
@@ -127,6 +130,17 @@ export default function App() {
       return true
     } catch {
       showToast('Não foi possível abrir a configuração de alarmes')
+      return false
+    }
+  }
+
+  const configurarTelaCheia = async () => {
+    try {
+      await openFullScreenAlarmSettings()
+      await atualizarStatusNotificacoes()
+      return true
+    } catch {
+      showToast('Não foi possível abrir a configuração de tela cheia')
       return false
     }
   }
@@ -244,9 +258,11 @@ export default function App() {
           <TabConfig
             notifAtiva={notifAtiva}
             exactAlarmStatus={exactAlarmStatus}
+            fullScreenStatus={fullScreenStatus}
             nativeNotifications={nativeNotifications}
             onAtivarNotif={ativarNotificacoes}
             onConfigurarAlarmes={configurarAlarmesExatos}
+            onConfigurarTelaCheia={configurarTelaCheia}
             onTestarNotif={testarNotificacao}
           />
         )}
