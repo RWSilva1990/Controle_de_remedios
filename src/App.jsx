@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import {
+  getUserProfile,
   initLocalDb,
   listMedications,
   markMedicationDeleted,
   recordMovement,
   saveMedication,
+  saveUserProfile,
 } from './localDb'
 import { importFromFirebaseIfNeeded, syncPendingToFirebase } from './cloudSync'
 import {
@@ -23,6 +27,7 @@ import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
 import TabAdd from './components/TabAdd'
 import TabHistory from './components/TabHistory'
+import TabProfile from './components/TabProfile'
 import TabConfig from './components/TabConfig'
 import BottomNav from './components/BottomNav'
 import Toast from './components/Toast'
@@ -30,6 +35,7 @@ import ModalRecarga from './components/ModalRecarga'
 import styles from './App.module.css'
 
 const SENHA = '12345'
+const EMPTY_PROFILE = { nome: '', idade: '', tipoSanguineo: '', telefone: '', foto: '' }
 
 export function calcularEstoque(med, agora = new Date()) {
   const dataInicio = new Date(med.dataCompra)
@@ -73,6 +79,7 @@ export default function App() {
   const [logado, setLogado] = useState(false)
   const [tab, setTab] = useState('home')
   const [editingId, setEditingId] = useState(null)
+  const [profile, setProfile] = useState(EMPTY_PROFILE)
   const [medicamentos, setMedicamentos] = useState([])
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState('')
@@ -81,39 +88,18 @@ export default function App() {
   const [exactAlarmStatus, setExactAlarmStatus] = useState('not-applicable')
   const [fullScreenStatus, setFullScreenStatus] = useState('not-applicable')
   const [nativeNotifications, setNativeNotifications] = useState(false)
+  const lastBackAt = useRef(0)
 
   const showToast = useCallback((msg) => {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
   }, [])
 
-  const aplicarEstadoNavegacao = useCallback((state) => {
-    setTab(state?.tab || 'home')
-    setEditingId(state?.editingId || null)
-    setModalMedId(state?.modalMedId || null)
-  }, [])
-
   const navegar = useCallback((destino, extras = {}) => {
-    const state = {
-      rws: true,
-      tab: destino,
-      editingId: extras.editingId || null,
-      modalMedId: extras.modalMedId || null,
-    }
-    window.history.pushState(state, '')
-    aplicarEstadoNavegacao(state)
-  }, [aplicarEstadoNavegacao])
-
-  const abrirRecarga = useCallback((id) => {
-    const state = { rws: true, tab, editingId: null, modalMedId: id }
-    window.history.pushState(state, '')
-    aplicarEstadoNavegacao(state)
-  }, [tab, aplicarEstadoNavegacao])
-
-  const fecharRecarga = useCallback(() => {
-    if (modalMedId && window.history.state?.rws) window.history.back()
-    else setModalMedId(null)
-  }, [modalMedId])
+    setModalMedId(null)
+    setEditingId(extras.editingId || null)
+    setTab(destino)
+  }, [])
 
   const atualizarStatusNotificacoes = useCallback(async () => {
     try {
@@ -124,7 +110,6 @@ export default function App() {
       setNativeNotifications(status.native)
       return status
     } catch {
-      setNotifAtiva(false)
       return null
     }
   }, [])
@@ -134,6 +119,7 @@ export default function App() {
     try {
       await initLocalDb()
       await registrarAcoesPendentesDoAlarme()
+      setProfile(await getUserProfile())
 
       let lista = await listMedications()
       if (!lista.length) {
@@ -160,22 +146,6 @@ export default function App() {
   useEffect(() => {
     if (!logado) return undefined
 
-    const initialState = { rws: true, tab: 'home', editingId: null, modalMedId: null }
-    window.history.replaceState(initialState, '')
-    aplicarEstadoNavegacao(initialState)
-
-    const handlePopState = (event) => {
-      if (event.state?.rws) aplicarEstadoNavegacao(event.state)
-      else aplicarEstadoNavegacao(initialState)
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [logado, aplicarEstadoNavegacao])
-
-  useEffect(() => {
-    if (!logado) return undefined
-
     atualizarStatusNotificacoes()
     carregar()
 
@@ -196,33 +166,75 @@ export default function App() {
     }
   }, [logado, carregar, atualizarStatusNotificacoes])
 
+  useEffect(() => {
+    if (!logado || Capacitor.getPlatform() !== 'android') return undefined
+
+    let listenerHandle
+    CapacitorApp.addListener('backButton', () => {
+      if (modalMedId) {
+        setModalMedId(null)
+        if (tab !== 'home') {
+          setEditingId(null)
+          setTab('home')
+        }
+        return
+      }
+
+      if (tab !== 'home') {
+        setEditingId(null)
+        setTab('home')
+        return
+      }
+
+      const now = Date.now()
+      if (now - lastBackAt.current <= 2200) {
+        CapacitorApp.exitApp()
+        return
+      }
+
+      lastBackAt.current = now
+      showToast('Pressione novamente para sair')
+    }).then(handle => { listenerHandle = handle })
+
+    return () => listenerHandle?.remove()
+  }, [logado, tab, modalMedId, showToast])
+
   const handleLogin = (senha) => {
     if (senha === SENHA) setLogado(true)
     else showToast('Senha incorreta')
   }
 
   const ativarNotificacoes = async () => {
+    let permission
     try {
-      const permission = await requestNotificationPermission()
-      if (permission === 'granted') {
-        setNotifAtiva(true)
-        await scheduleMedicationNotifications(medicamentos, calcularEstoque)
-        await atualizarStatusNotificacoes()
-        showToast('✅ Notificações ativadas!')
-        return true
-      }
-      showToast('Permissão de notificações não concedida')
-      return false
+      permission = await requestNotificationPermission()
     } catch {
-      showToast('Não foi possível ativar as notificações')
+      showToast('Não foi possível solicitar a permissão de notificações')
       return false
     }
+
+    if (permission !== 'granted') {
+      showToast('Permissão de notificações não concedida')
+      return false
+    }
+
+    setNotifAtiva(true)
+    showToast('✅ Notificações ativadas!')
+
+    try {
+      await scheduleMedicationNotifications(medicamentos, calcularEstoque)
+    } catch {
+      // A permissão já foi concedida; o agendamento será tentado novamente ao carregar o app.
+    }
+
+    setTimeout(() => void atualizarStatusNotificacoes(), 350)
+    return true
   }
 
   const configurarAlarmesExatos = async () => {
     try {
       await openExactAlarmSettings()
-      await atualizarStatusNotificacoes()
+      setTimeout(() => void atualizarStatusNotificacoes(), 350)
       return true
     } catch {
       showToast('Não foi possível abrir a configuração de alarmes')
@@ -233,7 +245,7 @@ export default function App() {
   const configurarTelaCheia = async () => {
     try {
       await openFullScreenAlarmSettings()
-      await atualizarStatusNotificacoes()
+      setTimeout(() => void atualizarStatusNotificacoes(), 350)
       return true
     } catch {
       showToast('Não foi possível abrir a configuração de tela cheia')
@@ -267,6 +279,12 @@ export default function App() {
       showToast('Falha ao testar a notificação')
       return false
     }
+  }
+
+  const salvarPerfil = async (dados) => {
+    const salvo = await saveUserProfile(dados)
+    setProfile(salvo)
+    return salvo
   }
 
   const salvarMed = async ({ id, modo, nome, total, alerta, dataCompra, configDoses }) => {
@@ -311,8 +329,8 @@ export default function App() {
       }
 
       await carregar()
-      if (window.history.state?.rws) window.history.back()
-      else aplicarEstadoNavegacao({ tab: 'meds' })
+      setEditingId(null)
+      setTab('meds')
     } catch {
       showToast('Erro ao salvar localmente')
       throw new Error('Falha ao salvar medicamento localmente')
@@ -353,8 +371,8 @@ export default function App() {
         quantidade: Number(qtd),
       })
       showToast(`📦 +${qtd} comprimidos adicionados!`)
+      setModalMedId(null)
       await carregar()
-      fecharRecarga()
     } catch {
       showToast('Erro ao registrar compra localmente')
     }
@@ -367,14 +385,10 @@ export default function App() {
   const showTopbar = tab !== 'home'
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell} ${tab === 'home' ? styles.homeShell : ''}`}>
       {showTopbar && (
         <div className={styles.topbar}>
-          <button
-            className={styles.brandButton}
-            onClick={() => navegar('home')}
-            aria-label="Voltar para o início"
-          >
+          <button className={styles.brandButton} onClick={() => navegar('home')} aria-label="Voltar para o início">
             <span className={styles.mark}>R</span>
             <span>RWS Remédios</span>
           </button>
@@ -387,15 +401,17 @@ export default function App() {
           <TabHome
             medicamentos={medicamentos}
             loading={loading}
+            profile={profile}
+            onOpenProfile={() => navegar('profile')}
             onOpenMeds={() => navegar('meds')}
-            onRecarga={abrirRecarga}
+            onRecarga={id => setModalMedId(id)}
           />
         )}
         {tab === 'meds' && (
           <TabMeds
             medicamentos={medicamentos}
             loading={loading}
-            onRecarga={abrirRecarga}
+            onRecarga={id => setModalMedId(id)}
             onRemover={removerMed}
             onEditar={id => navegar('add', { editingId: id })}
             onAdd={() => navegar('add')}
@@ -406,10 +422,11 @@ export default function App() {
             onSalvar={salvarMed}
             showToast={showToast}
             medicamento={medEditando}
-            onCancelar={() => window.history.back()}
+            onCancelar={() => navegar('meds')}
           />
         )}
         {tab === 'history' && <TabHistory />}
+        {tab === 'profile' && <TabProfile profile={profile} onSave={salvarPerfil} showToast={showToast} />}
         {tab === 'config' && (
           <TabConfig
             notifAtiva={notifAtiva}
@@ -422,14 +439,14 @@ export default function App() {
         )}
       </main>
 
-      {tab !== 'add' && <BottomNav tab={tab} onTab={destino => navegar(destino)} />}
+      {tab !== 'add' && <BottomNav tab={tab} onTab={navegar} />}
 
       {medModal && (
         <ModalRecarga
           med={medModal}
           estoqueAtual={calcularEstoque(medModal)}
           onConfirm={(qtd) => confirmarRecarga(modalMedId, qtd)}
-          onClose={fecharRecarga}
+          onClose={() => setModalMedId(null)}
         />
       )}
 
