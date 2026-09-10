@@ -16,92 +16,96 @@ function proximaDose(med) {
   return doses[0]?.hora || null
 }
 
-export default function TabMeds({ medicamentos, loading, onRecarga, onRemover }) {
-  if (loading) return (
-    <div className={s.empty}>
-      <div className={s.emptyIcon}>⏳</div>
-      <h3>Carregando...</h3>
-    </div>
-  )
+function diasRestantes(med) {
+  const consumoDia = (med.configDoses || []).reduce((total, dose) => total + Number(dose.qtd || 0), 0)
+  if (!consumoDia) return null
+  return Math.floor(calcularEstoque(med) / consumoDia)
+}
 
-  if (!medicamentos.length) return (
-    <div className={s.empty}>
-      <div className={s.emptyIcon}>💊</div>
-      <h3>Nenhum medicamento</h3>
-      <p>Vá até <strong>Cadastrar</strong> para adicionar o primeiro.</p>
-    </div>
-  )
+export default function TabMeds({ medicamentos, loading, onRecarga, onRemover, onAdd }) {
+  if (loading) return <div className={s.empty}>Carregando medicamentos...</div>
 
-  // Summary chips
-  const critico = medicamentos.filter(m => calcularEstoque(m) <= m.alerta).length
-  const baixo   = medicamentos.filter(m => {
-    const a = calcularEstoque(m)
-    return a > m.alerta && a <= m.alerta * 2
-  }).length
+  const critico = medicamentos.filter(m => calcularEstoque(m) <= Number(m.alerta || 0)).length
 
   return (
-    <div>
-      <div className={s.chips}>
-        <span className={`${s.chip} ${s.chipOk}`}>{medicamentos.length} remédio{medicamentos.length !== 1 ? 's' : ''}</span>
-        {critico > 0 && <span className={`${s.chip} ${s.chipDanger}`}>⚠️ {critico} crítico{critico !== 1 ? 's' : ''}</span>}
-        {baixo   > 0 && <span className={`${s.chip} ${s.chipWarn}`}>⬇️ {baixo} baixo{baixo !== 1 ? 's' : ''}</span>}
+    <div className={s.wrap}>
+      <div className={s.pageHeader}>
+        <div>
+          <span className={s.eyebrow}>Medicamentos</span>
+          <h1>Seus medicamentos</h1>
+          <p>Estoque, horários e próximas doses em um só lugar.</p>
+        </div>
+        <button className={s.addButton} onClick={onAdd} aria-label="Adicionar medicamento">+</button>
       </div>
 
-      {medicamentos.map(med => {
-        const atual  = calcularEstoque(med)
-        const pct    = Math.min(100, Math.round((atual / Math.max(med.total, 1)) * 100))
-        const isCrit = atual <= med.alerta
-        const isBaix = !isCrit && atual <= med.alerta * 2
-        const cor    = isCrit ? 'var(--danger)' : isBaix ? 'var(--warn)' : 'var(--ok)'
-        const prox   = proximaDose(med)
+      <div className={s.summary}>
+        <span>{medicamentos.length} cadastrado{medicamentos.length !== 1 ? 's' : ''}</span>
+        <span className={critico ? s.summaryDanger : ''}>{critico} com estoque baixo</span>
+      </div>
 
-        return (
-          <div key={med.id} className={`${s.card} ${isCrit ? s.cardCrit : isBaix ? s.cardBaix : ''}`}>
-            <div className={s.cardLine} style={{ background: cor }} />
+      {!medicamentos.length ? (
+        <div className={s.emptyCard}>
+          <div className={s.emptyIcon}>+</div>
+          <strong>Nenhum medicamento cadastrado</strong>
+          <p>Adicione o primeiro medicamento para começar a acompanhar doses e estoque.</p>
+          <button onClick={onAdd}>Adicionar medicamento</button>
+        </div>
+      ) : (
+        <div className={s.list}>
+          {medicamentos.map(med => {
+            const atual = calcularEstoque(med)
+            const isCrit = atual <= Number(med.alerta || 0)
+            const prox = proximaDose(med)
+            const dias = diasRestantes(med)
 
-            <div className={s.header}>
-              <div className={s.avatar}>{med.nome.charAt(0)}</div>
-              <div className={s.meta}>
-                <div className={s.nome}>{med.nome}</div>
-                <div className={s.tags}>
-                  {(med.configDoses || []).map((d, i) => (
-                    <span key={i} className={s.tag}>{d.hora} · {d.qtd}cp</span>
+            return (
+              <article key={med.id} className={s.card}>
+                <div className={s.cardTop}>
+                  <div className={s.avatar}>{med.nome.charAt(0)}</div>
+                  <div className={s.meta}>
+                    <div className={s.nameRow}>
+                      <h2>{med.nome}</h2>
+                      <span className={isCrit ? s.badgeDanger : s.badgeOk}>
+                        {isCrit ? 'Estoque baixo' : 'Estoque OK'}
+                      </span>
+                    </div>
+                    <p>{prox ? `Próxima dose às ${prox}` : 'Sem horário cadastrado'}</p>
+                  </div>
+                </div>
+
+                <div className={s.stockRow}>
+                  <div>
+                    <span>Estoque atual</span>
+                    <strong>{atual}</strong>
+                    <small>comprimidos</small>
+                  </div>
+                  <div>
+                    <span>Estoque mínimo</span>
+                    <strong>{med.alerta}</strong>
+                    <small>comprimidos</small>
+                  </div>
+                  <div>
+                    <span>Previsão</span>
+                    <strong>{dias === null ? '—' : dias}</strong>
+                    <small>{dias === 1 ? 'dia' : 'dias'}</small>
+                  </div>
+                </div>
+
+                <div className={s.doses}>
+                  {(med.configDoses || []).map((dose, i) => (
+                    <span key={i}>{dose.hora} · {dose.qtd} cp</span>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            <div className={s.estoque}>
-              <div className={s.estoqueRow}>
-                <div>
-                  <span className={s.estoqueNum} style={{ color: cor }}>{atual}</span>
-                  <span className={s.estoqueLabel}> comprimidos</span>
+                <div className={s.actions}>
+                  <button className={s.buyButton} onClick={() => onRecarga(med.id)}>Registrar compra</button>
+                  <button className={s.removeButton} onClick={() => onRemover(med.id, med.nome)}>Remover</button>
                 </div>
-                <span
-                  className={`${s.badge} ${isCrit ? s.badgeDanger : isBaix ? s.badgeWarn : s.badgeOk}`}
-                >
-                  {isCrit ? `⚠️ Crítico (mín ${med.alerta})` : isBaix ? `⬇️ Baixo (mín ${med.alerta})` : `✅ Normal (mín ${med.alerta})`}
-                </span>
-              </div>
-              <div className={s.bar}>
-                <div className={s.barFill} style={{ width: `${pct}%`, background: cor }} />
-              </div>
-            </div>
-
-            {prox && (
-              <div className={s.proxDose}>
-                <span className={s.proxLabel}>Próxima dose</span>
-                <span className={s.proxTime}>{prox}</span>
-              </div>
-            )}
-
-            <div className={s.actions}>
-              <button className={`${s.btn} ${s.btnOk}`} onClick={() => onRecarga(med.id)}>📦 Recarga</button>
-              <button className={`${s.btn} ${s.btnDanger}`} onClick={() => onRemover(med.id, med.nome)}>🗑️ Remover</button>
-            </div>
-          </div>
-        )
-      })}
+              </article>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
