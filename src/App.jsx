@@ -320,7 +320,7 @@ export default function App() {
       {showTopbar && (
         <div className={styles.topbar}>
           <button className={styles.brandButton} onClick={() => navegar('home')} aria-label="Voltar para o início">
-            <span className={styles.mark}>R</span><span>RWS Remédios</span>
+            <img className={styles.mark} src="/rws-app-icon.svg" alt="" /><span>RWS Remédios</span>
           </button>
           <button className={styles.iconBtn} onClick={carregar} title="Atualizar" aria-label="Atualizar dados">↻</button>
         </div>
