@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from './firebase'
+import {
+  getNotificationStatus,
+  openExactAlarmSettings,
+  requestNotificationPermission,
+  scheduleMedicationNotifications,
+  sendTestNotification,
+} from './notifications'
 import Login from './components/Login'
 import TabHome from './components/TabHome'
 import TabMeds from './components/TabMeds'
@@ -34,41 +41,6 @@ export function calcularEstoque(med, agora = new Date()) {
   return Math.max(0, med.total - consumido)
 }
 
-function agendarAlarmes(medicamentos) {
-  if (Notification.permission !== 'granted') return
-  if (window._alarmeInterval) clearInterval(window._alarmeInterval)
-
-  window._alarmeInterval = setInterval(() => {
-    const agora = new Date()
-    const horaAtual = `${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')}`
-
-    medicamentos.forEach(med => {
-      const estoque = calcularEstoque(med, agora)
-      ;(med.configDoses || []).forEach(dose => {
-        if (dose.hora === horaAtual) {
-          new Notification(`💊 ${med.nome}`, {
-            body: `Tome agora ${dose.qtd} comprimido(s). Restam ${estoque}.`,
-            icon: '/icon-192.png',
-            tag: `dose-${med.id}-${horaAtual}`,
-            vibrate: [200, 100, 200]
-          })
-
-          const estoqueApos = Math.max(0, estoque - Number(dose.qtd))
-          if (estoqueApos <= med.alerta) {
-            setTimeout(() => {
-              new Notification(`⚠️ Estoque baixo: ${med.nome}`, {
-                body: `Restam apenas ${estoqueApos} comprimido(s). Compre mais!`,
-                icon: '/icon-192.png',
-                tag: `alerta-${med.id}`,
-              })
-            }, 3000)
-          }
-        }
-      })
-    })
-  }, 60000)
-}
-
 export default function App() {
   const [logado, setLogado] = useState(false)
   const [tab, setTab] = useState('home')
@@ -77,10 +49,25 @@ export default function App() {
   const [toast, setToast] = useState('')
   const [modalMedId, setModalMedId] = useState(null)
   const [notifAtiva, setNotifAtiva] = useState(false)
+  const [exactAlarmStatus, setExactAlarmStatus] = useState('not-applicable')
+  const [nativeNotifications, setNativeNotifications] = useState(false)
 
   const showToast = useCallback((msg) => {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
+  }, [])
+
+  const atualizarStatusNotificacoes = useCallback(async () => {
+    try {
+      const status = await getNotificationStatus()
+      setNotifAtiva(status.display === 'granted')
+      setExactAlarmStatus(status.exactAlarm)
+      setNativeNotifications(status.native)
+      return status
+    } catch {
+      setNotifAtiva(false)
+      return null
+    }
   }, [])
 
   const carregar = useCallback(async () => {
@@ -90,7 +77,12 @@ export default function App() {
       const lista = []
       snap.forEach(d => lista.push({ id: d.id, ...d.data() }))
       setMedicamentos(lista)
-      if (Notification.permission === 'granted') agendarAlarmes(lista)
+
+      try {
+        await scheduleMedicationNotifications(lista, calcularEstoque)
+      } catch {
+        // Falha de agendamento não deve impedir o uso ou carregamento do app.
+      }
     } catch(e) {
       showToast('Erro ao carregar dados 😕')
     } finally {
@@ -100,10 +92,10 @@ export default function App() {
 
   useEffect(() => {
     if (logado) {
+      atualizarStatusNotificacoes()
       carregar()
-      setNotifAtiva(Notification.permission === 'granted')
     }
-  }, [logado, carregar])
+  }, [logado, carregar, atualizarStatusNotificacoes])
 
   const handleLogin = (senha) => {
     if (senha === SENHA) setLogado(true)
@@ -111,15 +103,44 @@ export default function App() {
   }
 
   const ativarNotificacoes = async () => {
-    const perm = await Notification.requestPermission()
-    if (perm === 'granted') {
-      setNotifAtiva(true)
-      agendarAlarmes(medicamentos)
-      showToast('✅ Notificações ativadas!')
-      return true
+    try {
+      const permission = await requestNotificationPermission()
+      if (permission === 'granted') {
+        setNotifAtiva(true)
+        await scheduleMedicationNotifications(medicamentos, calcularEstoque)
+        await atualizarStatusNotificacoes()
+        showToast('✅ Notificações ativadas!')
+        return true
+      }
+      showToast('Permissão de notificações não concedida')
+      return false
+    } catch {
+      showToast('Não foi possível ativar as notificações')
+      return false
     }
-    showToast('Permissão negada')
-    return false
+  }
+
+  const configurarAlarmesExatos = async () => {
+    try {
+      await openExactAlarmSettings()
+      await atualizarStatusNotificacoes()
+      return true
+    } catch {
+      showToast('Não foi possível abrir a configuração de alarmes')
+      return false
+    }
+  }
+
+  const testarNotificacao = async () => {
+    try {
+      const ok = await sendTestNotification()
+      if (ok) showToast('✅ Notificação de teste enviada!')
+      else showToast('Ative as notificações primeiro')
+      return ok
+    } catch {
+      showToast('Falha ao testar a notificação')
+      return false
+    }
   }
 
   const salvarMed = async ({ nome, total, alerta, dataCompra, configDoses }) => {
@@ -222,8 +243,11 @@ export default function App() {
         {tab === 'config' && (
           <TabConfig
             notifAtiva={notifAtiva}
+            exactAlarmStatus={exactAlarmStatus}
+            nativeNotifications={nativeNotifications}
             onAtivarNotif={ativarNotificacoes}
-            showToast={showToast}
+            onConfigurarAlarmes={configurarAlarmesExatos}
+            onTestarNotif={testarNotificacao}
           />
         )}
       </main>
