@@ -87,3 +87,43 @@
   max-width: 28rem;
   margin: 0 auto;
 }
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.event {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.event div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.event strong {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.event span,
+.event time {
+  color: var(--muted2);
+  font-size: 0.76rem;
+}
+
+.event time {
+  white-space: nowrap;
+}
