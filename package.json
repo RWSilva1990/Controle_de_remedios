@@ -8,8 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "android:add": "npx cap add android",
-    "android:sync": "npx cap sync android",
+    "android:configure": "node scripts/configure-android.mjs",
+    "android:add": "npx cap add android && npm run android:configure",
+    "android:sync": "npx cap sync android && npm run android:configure",
     "android:open": "npx cap open android"
   },
   "dependencies": {
