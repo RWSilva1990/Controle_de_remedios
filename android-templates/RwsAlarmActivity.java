@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -84,14 +85,10 @@ public class RwsAlarmActivity extends Activity {
         brandRow.setOrientation(LinearLayout.HORIZONTAL);
         brandRow.setGravity(Gravity.CENTER_VERTICAL);
 
-        TextView mark = new TextView(this);
-        mark.setText("R");
-        mark.setTextSize(19);
-        mark.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        mark.setGravity(Gravity.CENTER);
-        mark.setTextColor(Color.WHITE);
-        mark.setBackground(rounded(Color.rgb(22, 119, 238), 16));
-        brandRow.addView(mark, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        ImageView mark = new ImageView(this);
+        mark.setImageResource(R.drawable.rws_app_icon);
+        mark.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        brandRow.addView(mark, new LinearLayout.LayoutParams(dp(54), dp(54)));
 
         TextView brand = new TextView(this);
         brand.setText("RWS Remédios");
