@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RWS Remédios">
+  <defs>
+    <linearGradient id="bg" x1="54" y1="42" x2="454" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#47D9D2"/>
+      <stop offset="0.52" stop-color="#168DDE"/>
+      <stop offset="1" stop-color="#0759B8"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="165" y1="116" x2="310" y2="326" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#C9F4FF"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#003B7C" flood-opacity="0.26"/>
+    </filter>
+  </defs>
+  <rect x="20" y="20" width="472" height="472" rx="112" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <g transform="rotate(-45 236 236)">
+      <rect x="166" y="92" width="140" height="286" rx="70" fill="url(#pill)" stroke="#FFFFFF" stroke-width="12"/>
+      <path d="M166 235h140" stroke="#168DDE" stroke-width="18"/>
+      <path d="M198 126c18-15 43-20 66-10" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round" opacity="0.75"/>
+    </g>
+    <circle cx="338" cy="337" r="92" fill="#0D70C9" stroke="#FFFFFF" stroke-width="15"/>
+    <circle cx="338" cy="337" r="7" fill="#FFFFFF"/>
+    <path d="M338 286v54l37 23" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="338" cy="270" r="6" fill="#FFFFFF"/>
+    <circle cx="405" cy="337" r="6" fill="#FFFFFF"/>
+    <circle cx="338" cy="404" r="6" fill="#FFFFFF"/>
+    <circle cx="271" cy="337" r="6" fill="#FFFFFF"/>
+  </g>
+</svg>
