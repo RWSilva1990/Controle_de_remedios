@@ -37,19 +37,13 @@ public class RwsAlarmActivity extends Activity {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
         } else {
-            getWindow().addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-            );
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
         }
-        getWindow().addFlags(
-            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-        );
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
 
         Window window = getWindow();
-        window.setStatusBarColor(Color.rgb(246, 248, 251));
-        window.setNavigationBarColor(Color.rgb(246, 248, 251));
+        window.setStatusBarColor(Color.rgb(225, 246, 235));
+        window.setNavigationBarColor(Color.rgb(237, 247, 244));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             window.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
         }
@@ -68,7 +62,15 @@ public class RwsAlarmActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(dp(24), dp(28), dp(24), dp(28));
-        root.setBackgroundColor(Color.rgb(246, 248, 251));
+        GradientDrawable bg = new GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            new int[] {
+                Color.rgb(221, 247, 232),
+                Color.rgb(238, 249, 244),
+                Color.rgb(232, 244, 255)
+            }
+        );
+        root.setBackground(bg);
 
         LinearLayout brandRow = new LinearLayout(this);
         brandRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -88,10 +90,7 @@ public class RwsAlarmActivity extends Activity {
         brand.setTextSize(16);
         brand.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         brand.setTextColor(Color.rgb(20, 31, 55));
-        LinearLayout.LayoutParams brandParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams brandParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         brandParams.leftMargin = dp(10);
         brandRow.addView(brand, brandParams);
         root.addView(brandRow);
@@ -103,10 +102,7 @@ public class RwsAlarmActivity extends Activity {
         time.setLetterSpacing(-0.03f);
         time.setTextColor(Color.rgb(20, 31, 55));
         time.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         timeParams.topMargin = dp(42);
         root.addView(time, timeParams);
 
@@ -123,11 +119,8 @@ public class RwsAlarmActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setGravity(Gravity.CENTER_HORIZONTAL);
         card.setPadding(dp(22), dp(24), dp(22), dp(24));
-        card.setBackground(roundedWithStroke(Color.WHITE, Color.rgb(226, 233, 241), 24, 1));
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        card.setBackground(roundedWithStroke(Color.argb(242, 255, 255, 255), Color.rgb(224, 235, 236), 24, 1));
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         cardParams.topMargin = dp(24);
         root.addView(card, cardParams);
 
@@ -144,10 +137,7 @@ public class RwsAlarmActivity extends Activity {
         dose.setTextSize(16);
         dose.setTextColor(Color.rgb(92, 103, 126));
         dose.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams doseParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams doseParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         doseParams.topMargin = dp(8);
         card.addView(dose, doseParams);
 
@@ -160,10 +150,7 @@ public class RwsAlarmActivity extends Activity {
         taken.setBackground(rounded(Color.rgb(22, 119, 238), 16));
         taken.setStateListAnimator(null);
         taken.setOnClickListener(v -> handleTaken());
-        LinearLayout.LayoutParams takenParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        );
+        LinearLayout.LayoutParams takenParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
         takenParams.topMargin = dp(34);
         root.addView(taken, takenParams);
 
@@ -173,25 +160,19 @@ public class RwsAlarmActivity extends Activity {
         snooze.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         snooze.setTextColor(Color.rgb(63, 88, 115));
         snooze.setAllCaps(false);
-        snooze.setBackground(roundedWithStroke(Color.WHITE, Color.rgb(220, 231, 242), 16, 1));
+        snooze.setBackground(roundedWithStroke(Color.argb(238, 255, 255, 255), Color.rgb(215, 231, 233), 16, 1));
         snooze.setStateListAnimator(null);
         snooze.setOnClickListener(v -> handleSnooze());
-        LinearLayout.LayoutParams snoozeParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        );
+        LinearLayout.LayoutParams snoozeParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
         snoozeParams.topMargin = dp(12);
         root.addView(snooze, snoozeParams);
 
         TextView hint = new TextView(this);
         hint.setText("O alarme continuará tocando até você escolher uma opção.");
         hint.setTextSize(12);
-        hint.setTextColor(Color.rgb(126, 139, 156));
+        hint.setTextColor(Color.rgb(112, 132, 143));
         hint.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        );
+        LinearLayout.LayoutParams hintParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         hintParams.topMargin = dp(18);
         root.addView(hint, hintParams);
 
@@ -217,25 +198,13 @@ public class RwsAlarmActivity extends Activity {
 
     private void handleTaken() {
         Intent intent = getIntent();
-        RwsAlarmActions.add(
-            this,
-            "taken",
-            intent.getStringExtra("medicationId"),
-            intent.getStringExtra("medicationName"),
-            intent.getIntExtra("quantity", 1)
-        );
+        RwsAlarmActions.add(this, "taken", intent.getStringExtra("medicationId"), intent.getStringExtra("medicationName"), intent.getIntExtra("quantity", 1));
         dismissAlarm();
     }
 
     private void handleSnooze() {
         Intent intent = getIntent();
-        RwsAlarmActions.add(
-            this,
-            "snoozed",
-            intent.getStringExtra("medicationId"),
-            intent.getStringExtra("medicationName"),
-            intent.getIntExtra("quantity", 1)
-        );
+        RwsAlarmActions.add(this, "snoozed", intent.getStringExtra("medicationId"), intent.getStringExtra("medicationName"), intent.getIntExtra("quantity", 1));
         RwsAlarmScheduler.snooze(this, intent, 10);
         dismissAlarm();
     }
@@ -252,11 +221,8 @@ public class RwsAlarmActivity extends Activity {
         try {
             vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
             long[] pattern = new long[] {0, 800, 400, 800, 400, 800};
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
-            } else {
-                vibrator.vibrate(pattern, 0);
-            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0));
+            else vibrator.vibrate(pattern, 0);
         } catch (Exception ignored) {}
     }
 
