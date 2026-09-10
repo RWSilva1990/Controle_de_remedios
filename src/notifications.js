@@ -1,5 +1,9 @@
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
+import {
+  getFullScreenAlarmStatus,
+  scheduleNativeDoseAlarms,
+} from './nativeAlarm'
 
 const DOSE_CHANNEL = 'rws-medication-reminders'
 const STOCK_CHANNEL = 'rws-stock-alerts'
@@ -16,10 +20,6 @@ function stableId(seed, offset = 0) {
     hash |= 0
   }
   return offset + (Math.abs(hash) % 900000)
-}
-
-function doseId(medId, index) {
-  return stableId(`${medId}:dose:${index}`, 1000000)
 }
 
 function stockId(medId) {
@@ -51,21 +51,26 @@ export async function getNotificationStatus() {
     return {
       display: typeof Notification !== 'undefined' ? Notification.permission : 'denied',
       exactAlarm: 'not-applicable',
+      fullScreen: 'not-applicable',
       native: false,
     }
   }
 
   const permission = await LocalNotifications.checkPermissions()
   let exactAlarm = 'granted'
+  let fullScreen = 'granted'
 
   if (Capacitor.getPlatform() === 'android') {
     const exact = await LocalNotifications.checkExactNotificationSetting()
     exactAlarm = exact.exact_alarm
+    const full = await getFullScreenAlarmStatus()
+    fullScreen = full.granted ? 'granted' : 'denied'
   }
 
   return {
     display: permission.display,
     exactAlarm,
+    fullScreen,
     native: true,
   }
 }
@@ -190,37 +195,20 @@ export async function scheduleMedicationNotifications(medicamentos, calcularEsto
 
   await ensureAndroidChannels()
 
+  // Remove lembretes locais antigos de dose/estoque para evitar duplicidade após a migração.
   const pending = await LocalNotifications.getPending()
   const ours = pending.notifications.filter(item => item.id >= 1000000 && item.id < 3000000)
   if (ours.length) {
     await LocalNotifications.cancel({ notifications: ours.map(item => ({ id: item.id })) })
   }
 
+  // Doses passam a ser alarmes Android reais, independentes da WebView.
+  await scheduleNativeDoseAlarms(medicamentos)
+
+  // Alertas de estoque continuam como notificações comuns.
   const notifications = []
 
   medicamentos.forEach(med => {
-    ;(med.configDoses || []).forEach((dose, index) => {
-      if (!dose.hora || !Number(dose.qtd)) return
-      const [hour, minute] = dose.hora.split(':').map(Number)
-
-      notifications.push({
-        id: doseId(med.id, index),
-        title: med.nome,
-        body: `Hora do medicamento. Tome ${dose.qtd} comprimido${Number(dose.qtd) !== 1 ? 's' : ''}.`,
-        channelId: DOSE_CHANNEL,
-        schedule: {
-          on: { hour, minute },
-          allowWhileIdle: true,
-        },
-        extra: {
-          source: 'rws-remedios',
-          type: 'dose',
-          medicationId: med.id,
-          doseIndex: index,
-        },
-      })
-    })
-
     const stored = getStoredStockAlert(med)
     if (stored) {
       const at = new Date(stored.scheduledAt)
@@ -266,7 +254,7 @@ export async function scheduleMedicationNotifications(medicamentos, calcularEsto
     await LocalNotifications.schedule({ notifications })
   }
 
-  return { native: true, scheduled: true, count: notifications.length }
+  return { native: true, scheduled: true, stockCount: notifications.length }
 }
 
 export async function sendTestNotification() {
