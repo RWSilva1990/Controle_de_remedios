@@ -5,32 +5,39 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 public class RwsAlarmActionReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
+        JSONArray items = RwsAlarmReceiver.getItems(intent);
+
         if (RwsAlarmReceiver.ACTION_TAKEN.equals(action)) {
-            RwsAlarmActions.add(
-                context,
-                "taken",
-                intent.getStringExtra("medicationId"),
-                intent.getStringExtra("medicationName"),
-                intent.getIntExtra("quantity", 1)
-            );
+            recordAll(context, items, "taken");
             cancelNotification(context, intent.getIntExtra("alarmId", 0));
             return;
         }
 
         if (RwsAlarmReceiver.ACTION_SNOOZE.equals(action)) {
-            RwsAlarmActions.add(
-                context,
-                "snoozed",
-                intent.getStringExtra("medicationId"),
-                intent.getStringExtra("medicationName"),
-                intent.getIntExtra("quantity", 1)
-            );
+            recordAll(context, items, "snoozed");
             RwsAlarmScheduler.snooze(context, intent, 10);
             cancelNotification(context, intent.getIntExtra("alarmId", 0));
+        }
+    }
+
+    private void recordAll(Context context, JSONArray items, String action) {
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.optJSONObject(i);
+            if (item == null) continue;
+            RwsAlarmActions.add(
+                context,
+                action,
+                item.optString("medicationId", ""),
+                item.optString("medicationName", "Medicamento"),
+                item.optInt("quantity", 1)
+            );
         }
     }
 
