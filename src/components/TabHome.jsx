@@ -49,7 +49,6 @@ export default function TabHome({ medicamentos, loading, onOpenMeds, onRecarga, 
       <section className={s.hero}>
         <div className={s.heroTop}>
           <div>
-            <span className={s.brand}>RWS Remédios</span>
             <h1>{saudacao()}{primeiroNome ? `, ${primeiroNome}` : ''}</h1>
             <p>{primeiroNome ? 'Veja como está sua rotina de medicamentos hoje.' : 'Complete seu perfil para personalizar sua experiência.'}</p>
           </div>
