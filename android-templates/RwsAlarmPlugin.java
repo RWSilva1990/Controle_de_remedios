@@ -1,8 +1,6 @@
 package br.com.rwsilva.remedios;
 
-import android.app.AlarmManager;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -16,6 +14,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 @CapacitorPlugin(name = "RwsAlarm")
@@ -39,20 +38,15 @@ public class RwsAlarmPlugin extends Plugin {
                 int id = item.getInt("id");
                 int hour = item.getInt("hour");
                 int minute = item.getInt("minute");
-                int quantity = item.getInt("quantity");
-                String medicationId = item.optString("medicationId", "");
-                String medicationName = item.optString("medicationName", "Medicamento");
-                int doseIndex = item.optInt("doseIndex", 0);
+                JSONArray doseItems = item.optJSONArray("items");
+                if (doseItems == null || doseItems.length() == 0) continue;
 
                 RwsAlarmScheduler.scheduleDailyAlarm(
                     context,
                     id,
                     hour,
                     minute,
-                    medicationId,
-                    medicationName,
-                    quantity,
-                    doseIndex
+                    doseItems.toString()
                 );
                 count++;
             }
