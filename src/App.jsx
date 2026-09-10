@@ -100,6 +100,17 @@ export default function App() {
     }
   }, [logado, carregar, atualizarStatusNotificacoes])
 
+  useEffect(() => {
+    if (!logado) return undefined
+    const refreshPermissions = () => atualizarStatusNotificacoes()
+    window.addEventListener('focus', refreshPermissions)
+    document.addEventListener('visibilitychange', refreshPermissions)
+    return () => {
+      window.removeEventListener('focus', refreshPermissions)
+      document.removeEventListener('visibilitychange', refreshPermissions)
+    }
+  }, [logado, atualizarStatusNotificacoes])
+
   const handleLogin = (senha) => {
     if (senha === SENHA) setLogado(true)
     else showToast('Senha incorreta')
