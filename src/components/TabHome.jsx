@@ -27,20 +27,39 @@ function previsaoDias(med) {
   return Math.floor(estoque / consumoDia)
 }
 
-export default function TabHome({ medicamentos, loading, onOpenMeds, onRecarga }) {
+function saudacao() {
+  const hora = new Date().getHours()
+  if (hora < 12) return 'Bom dia'
+  if (hora < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
+export default function TabHome({ medicamentos, loading, onOpenMeds, onRecarga, profile, onOpenProfile }) {
   if (loading) return <div className={s.loading}>Carregando sua rotina...</div>
 
   const agenda = montarAgenda(medicamentos)
   const proxima = agenda.find(item => !item.passou) || null
   const criticos = medicamentos.filter(med => calcularEstoque(med) <= Number(med.alerta || 0))
   const restantes = agenda.filter(item => !item.passou).length
+  const nome = profile?.nome?.trim()
+  const primeiroNome = nome ? nome.split(/\s+/)[0] : ''
 
   return (
     <div className={s.wrap}>
-      <section className={s.greeting}>
-        <p className={s.eyebrow}>RWS Remédios</p>
-        <h1>Seu dia, de forma simples.</h1>
-        <p>Acompanhe suas próximas doses e o estoque dos medicamentos em um só lugar.</p>
+      <section className={s.hero}>
+        <div className={s.heroTop}>
+          <div>
+            <span className={s.brand}>RWS Remédios</span>
+            <h1>{saudacao()}{primeiroNome ? `, ${primeiroNome}` : ''}</h1>
+            <p>{primeiroNome ? 'Veja como está sua rotina de medicamentos hoje.' : 'Complete seu perfil para personalizar sua experiência.'}</p>
+          </div>
+          <button className={s.avatarButton} onClick={onOpenProfile} aria-label="Abrir perfil">
+            {profile?.foto ? <img src={profile.foto} alt="" /> : <span>{primeiroNome?.charAt(0)?.toUpperCase() || 'R'}</span>}
+          </button>
+        </div>
+
+        <div className={s.heroGlowOne} />
+        <div className={s.heroGlowTwo} />
       </section>
 
       <section className={s.nextCard}>
