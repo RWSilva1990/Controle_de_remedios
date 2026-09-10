@@ -9,22 +9,28 @@ export function hasNativeAlarm() {
 export async function scheduleNativeDoseAlarms(medicamentos) {
   if (!hasNativeAlarm()) return { native: false }
 
-  const alarms = []
+  const groups = new Map()
   medicamentos.forEach(med => {
     ;(med.configDoses || []).forEach((dose, index) => {
       if (!dose.hora || !Number(dose.qtd)) return
       const [hour, minute] = dose.hora.split(':').map(Number)
-      alarms.push({
-        id: stableAlarmId(`${med.id}:${index}`),
+      const key = `${hour}:${minute}`
+      if (!groups.has(key)) groups.set(key, { hour, minute, items: [] })
+      groups.get(key).items.push({
         medicationId: med.id,
         medicationName: med.nome,
         doseIndex: index,
         quantity: Number(dose.qtd),
-        hour,
-        minute,
       })
     })
   })
+
+  const alarms = Array.from(groups.values()).map(group => ({
+    id: stableAlarmId(`group:${group.hour}:${group.minute}`),
+    hour: group.hour,
+    minute: group.minute,
+    items: group.items,
+  }))
 
   return RwsAlarm.schedule({ alarms })
 }
