@@ -1,5 +1,25 @@
 .wrap { display: flex; flex-direction: column; gap: 0; }
 
+.pageIntro { margin-bottom: 1.35rem; }
+.pageIntro > span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  margin-bottom: 0.35rem;
+}
+.pageIntro h1 {
+  font-size: clamp(1.5rem, 6vw, 2rem);
+  line-height: 1.08;
+  letter-spacing: -0.045em;
+  margin-bottom: 0.45rem;
+}
+.pageIntro p {
+  color: var(--muted2);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 .section { margin-bottom: 1.5rem; }
 
 .sectionTitle {
@@ -44,6 +64,19 @@
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 
+.editStockNote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  background: #eef6ff;
+  border: 1px solid #dcecf9;
+  border-radius: 16px;
+  padding: 0.8rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+.editStockNote strong { color: var(--text); font-size: 0.78rem; }
+.editStockNote span { color: var(--muted2); font-size: 0.72rem; line-height: 1.45; }
+
 .doseRow {
   display: flex;
   align-items: center;
@@ -76,9 +109,7 @@
   margin-left: auto;
   font-size: 0.9rem;
   padding: 0.2rem;
-  transition: color 0.15s;
 }
-.removeBtn:hover { color: var(--danger); }
 
 .addDoseBtn {
   background: none;
@@ -91,23 +122,35 @@
   font-size: 0.82rem;
   font-weight: 600;
   font-family: var(--sans);
-  transition: all 0.15s;
 }
-.addDoseBtn:hover { border-color: var(--accent); background: rgba(59,130,246,0.05); }
 
+.formActions { display: flex; gap: 0.65rem; }
+
+.saveBtn,
+.cancelBtn {
+  border-radius: 12px;
+  padding: 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--sans);
+}
 .saveBtn {
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: 12px;
-  padding: 0.9rem;
-  width: 100%;
-  font-size: 0.95rem;
-  font-weight: 700;
-  cursor: pointer;
-  font-family: var(--sans);
-  transition: all 0.15s;
+  flex: 1;
 }
-.saveBtn:hover { background: #2563eb; }
-.saveBtn:active { transform: scale(0.98); }
+.cancelBtn {
+  background: var(--card);
+  color: var(--muted2);
+  border: 1px solid var(--border2);
+  min-width: 104px;
+}
+.saveBtn:active,
+.cancelBtn:active { transform: scale(0.98); }
 .saveBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+@media (max-width: 390px) {
+  .grid2 { grid-template-columns: 1fr; }
+}
